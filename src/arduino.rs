@@ -181,20 +181,16 @@ impl zed::Extension for ArduinoExtension {
         }
 
         // Determine environment variables.
-        // If environment variables were provided in settings, use those.
-        // Otherwise, use shell_env on Mac/Linux as a default.
-        if env.is_empty() {
-            // Only apply default if no env was set in settings
-            let default_env = match zed::current_platform().0 {
-                zed::Os::Mac | zed::Os::Linux => worktree.shell_env(),
-                zed::Os::Windows => Vec::new(), // Windows doesn't typically need shell_env
-            };
-
-            // Convert default_env (Vec<(String, String)>) to HashMap
-            for (key, value) in default_env {
-                env.insert(key, value);
-            }
-        }
+        // Always start with shell_env so PATH, HOME, etc. are present,
+        // then let any user-specified env vars override those defaults.
+        let default_env = match zed::current_platform().0 {
+            zed::Os::Mac | zed::Os::Linux => worktree.shell_env(),
+            zed::Os::Windows => Vec::new(),
+        };
+        // Insert shell_env first, then user settings override
+        let mut merged_env: HashMap<String, String> = default_env.into_iter().collect();
+        merged_env.extend(env);
+        env = merged_env;
 
         Ok(zed::Command {
             command: command_path,
