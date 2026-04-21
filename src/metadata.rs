@@ -1,8 +1,7 @@
 use std::fs;
 use zed_extension_api::{serde_json, Result};
 
-/// Tracks which tools were installed by the extension
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct InstallationState {
     pub platform: Option<Platform>,
     pub arduino_cli: Option<ToolMetadata>,
@@ -96,7 +95,6 @@ impl InstallationState {
         self.platform = Some(platform);
     }
 
-    /// Record that arduino-cli was downloaded by the extension
     pub fn record_arduino_cli_download(&mut self, version: &str, location: String) {
         self.arduino_cli = Some(ToolMetadata {
             source: ToolSource::Downloaded,
@@ -106,7 +104,6 @@ impl InstallationState {
         });
     }
 
-    /// Record that arduino-cli was found in PATH
     pub fn record_arduino_cli_from_path(&mut self, location: String) {
         self.arduino_cli = Some(ToolMetadata {
             source: ToolSource::Path,
@@ -116,7 +113,6 @@ impl InstallationState {
         });
     }
 
-    /// Record that clangd was downloaded by the extension
     pub fn record_clangd_download(&mut self, version: &str, location: String) {
         self.clangd = Some(ToolMetadata {
             source: ToolSource::Downloaded,
@@ -126,7 +122,6 @@ impl InstallationState {
         });
     }
 
-    /// Record that clangd was found in system
     pub fn record_clangd_from_system(&mut self, location: String, source: ToolSource) {
         self.clangd = Some(ToolMetadata {
             source,
@@ -136,7 +131,6 @@ impl InstallationState {
         });
     }
 
-    /// Record that language server was downloaded by the extension
     pub fn record_language_server_download(&mut self, version: &str, location: String) {
         self.arduino_language_server = Some(ToolMetadata {
             source: ToolSource::Downloaded,
@@ -146,7 +140,6 @@ impl InstallationState {
         });
     }
 
-    /// Record that language server was manually specified
     pub fn record_language_server_manual(&mut self, location: String) {
         self.arduino_language_server = Some(ToolMetadata {
             source: ToolSource::Manual,
@@ -198,24 +191,11 @@ impl InstallationState {
 
         Self {
             platform,
-            arduino_cli: json
-                .get("arduino_cli")
-                .and_then(|v| ToolMetadata::from_json(v)),
-            clangd: json.get("clangd").and_then(|v| ToolMetadata::from_json(v)),
+            arduino_cli: json.get("arduino_cli").and_then(ToolMetadata::from_json),
+            clangd: json.get("clangd").and_then(ToolMetadata::from_json),
             arduino_language_server: json
                 .get("arduino_language_server")
-                .and_then(|v| ToolMetadata::from_json(v)),
-        }
-    }
-}
-
-impl Default for InstallationState {
-    fn default() -> Self {
-        Self {
-            platform: None,
-            arduino_cli: None,
-            clangd: None,
-            arduino_language_server: None,
+                .and_then(ToolMetadata::from_json),
         }
     }
 }

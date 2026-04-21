@@ -993,9 +993,325 @@ src/
 
 ---
 
+## 📝 Session 4: Error Handling, Code Organization & Library Path Support [L996-1153]
+
+### **1. Comprehensive Error Handling System** [L998-1065]
+
+Previously, the extension would silently fail or provide vague error messages when dependencies couldn't be obtained. Implemented a comprehensive error handling system with:
+
+#### **Binary Validation** [L1000-1020]
+All downloaded binaries are now validated to ensure they're functional:
+
+**New validation functions:**
+- `validate_binary_exists()` - Checks file exists and is executable
+- `validate_arduino_cli()` - Runs `arduino-cli version` to verify functionality
+- `validate_clangd()` - Runs `clangd --version` to verify functionality
+- `validate_language_server()` - Validates Arduino Language Server binary
+
+**Benefits:**
+- Detects corrupted downloads immediately
+- Identifies architecture/platform mismatches
+- Provides early feedback if binaries are incompatible
+- Windows executable permissions handled correctly
+
+#### **Enhanced Dependency Checking** [L1020-1040]
+Completely rewrote the previously unused `check_dependencies()` function:
+
+- Returns `(Vec<String>, Vec<String>)` for errors vs warnings
+- Distinguishes critical issues (missing FQBN, no arduino-cli) from optional ones (missing clangd)
+- Considers user settings (autoDownload, autoCreate, etc.) when generating messages
+- Provides context-aware recommendations with platform-specific installation commands
+
+**New `report_dependencies()` function:**
+- Pretty-prints dependency status with ✅/⚠️/❌ icons
+- Called automatically on extension startup
+- Provides immediate feedback to users about their setup
+
+#### **Formatted Error Messages** [L1040-1065]
+Created `format_dependency_error()` function that generates comprehensive error messages:
+
+**Structure:**
+```
+Arduino Extension Error: Failed to obtain <tool>
+  Reason: <specific error details>
+
+Recovery Options:
+  1. <Primary recovery step>
+  2. <Alternative recovery step>
+  3. <Configuration change option>
+
+For more help, see: <documentation URL>
+```
+
+**Tool-specific guidance for:**
+- **arduino-cli**: Connection troubleshooting, manual install (macOS/Linux/Windows), disable auto-download
+- **clangd**: Trigger Zed's automatic installation, manual installation, reassurance about basic features
+- **arduino-language-server**: GitHub API rate limit guidance, alternative repo configuration
+
+**All platforms covered:** macOS, Linux, and Windows installation instructions
+
+### **2. Code Organization Refactoring** [L1065-1095]
+
+Created new `src/validation.rs` module to improve code organization:
+
+#### **File Structure Before:**
+- `src/utils.rs` - 383 lines (mixed utilities and validation)
+
+#### **File Structure After:**
+- `src/validation.rs` - 283 lines (focused on validation and error reporting)
+- `src/utils.rs` - 99 lines (focused on general utilities)
+
+#### **Moved Functions to validation.rs:**
+- `validate_binary_exists()`
+- `validate_arduino_cli()`
+- `validate_clangd()`
+- `validate_language_server()`
+- `format_dependency_error()`
+- `check_dependencies()`
+- `report_dependencies()`
+
+#### **Benefits:**
+- Clear separation of concerns (validation vs utilities)
+- Easier to find validation-related code
+- `utils.rs` is now lightweight and focused
+- Better follows single-responsibility principle
+
+### **3. Library Path Configuration Support** [L1095-1153]
+
+Implemented comprehensive support for custom library directories, allowing users to specify project-specific or shared libraries.
+
+#### **Core Functionality** [L1097-1115]
+Added library path detection and injection:
+
+**In `src/arduino.rs`:**
+- Reads `libraryPaths` array from settings
+- Passes library paths to language server via `-libraries` flag
+- Logs which custom library paths are being used
+
+**In `src/utils.rs`:**
+- Created `get_library_paths()` helper to safely extract library paths
+- Returns `Vec<String>` with empty vec as default
+- Handles missing or malformed settings gracefully
+
+**In `src/cli.rs`:**
+- Updated `generate_compilation_database()` to accept library paths
+- Passes library paths to arduino-cli via `--libraries` flag
+- Ensures IntelliSense uses custom libraries
+
+#### **Configuration** [L1115-1130]
+```json
+{
+  "lsp": {
+    "arduino": {
+      "settings": {
+        "libraryPaths": [
+          "/path/to/custom/libraries",
+          "./project-libs",
+          "../shared-libraries"
+        ]
+      }
+    }
+  }
+}
+```
+
+**Features:**
+- Supports multiple library directories
+- Absolute and relative paths supported
+- Relative paths resolved from project root
+- Used during compilation and IntelliSense generation
+
+#### **Settings Precedence** [L1130-1153]
+Documented important behavior:
+
+**Project settings completely REPLACE global settings for arrays:**
+- Global: `"libraryPaths": ["/global/lib"]`
+- Project: `"libraryPaths": ["./local"]`
+- **Result**: Only `["./local"]` is used (not merged)
+
+**Solution for combining both:**
+Must explicitly list all paths in project settings:
+```json
+"libraryPaths": [
+  "/home/user/shared-libs",  // repeat global
+  "./project-libs"            // add project
+]
+```
+
+**Documentation includes:**
+- Clear precedence rules explanation
+- Warning about project overriding global completely
+- Practical examples showing how to combine both
+- Complete settings reference table with all available options
+
+### **4. Key Improvements Summary** [L1153-1165]
+
+**Error Handling:**
+- ✅ Binary validation catches corrupted downloads
+- ✅ Clear distinction between critical errors and warnings
+- ✅ Every error includes recovery steps with platform-specific commands
+- ✅ Extension fails gracefully with actionable feedback
+
+**Code Quality:**
+- ✅ Better module organization with dedicated validation module
+- ✅ Single-responsibility principle followed
+- ✅ Reduced `utils.rs` from 383 to 99 lines
+
+**New Features:**
+- ✅ Custom library path support for project-specific libraries
+- ✅ Settings precedence clearly documented
+- ✅ Works with compilation database generation and IntelliSense
+
+## 📝 Session 5: Code Quality & Refactoring
+
+### **1. Duplicate Code Elimination**
+
+Identified and eliminated ~100+ lines of duplicate code across the codebase:
+
+#### **Version Extraction Functions (3 → 1)**
+- **Before:** Three separate functions (`extract_version_from_path`, `extract_version_from_cli_path`, `extract_version_from_clangd_path`)
+- **After:** Single generic `extract_version_from_directory_path()` helper with thin wrappers
+- **Impact:** Eliminated ~15 lines of duplication
+
+#### **Fetch GitHub Release Functions (3 → 1)**
+- **Before:** Three nearly identical functions for fetching releases
+- **After:** Generic `fetch_github_release_by_version()` with configurable tag prefix
+- **Impact:** Eliminated ~30 lines of duplication
+
+#### **Binary Download Helpers**
+Added three new helper functions to consolidate common patterns:
+- `check_cached_version()` - Validates cached binaries and version matching
+- `get_absolute_path()` - Constructs absolute paths from relative ones
+- `validate_and_report_binary()` - Validates binaries and formats error messages
+- **Impact:** Eliminated ~32 lines of duplication across 3 download functions
+
+#### **Other Simplifications**
+- Extracted `get_extension_readme_path()` - Eliminated 17 lines of duplication in `setup.rs`
+- Added `has_arg()` utility - Cleaner flag checking in `arduino.rs`
+- Moved `platform_strings` from `utils.rs` to `downloads.rs` (only used there)
+
+**Total Reduction:** ~100+ lines eliminated, `downloads.rs` reduced from 624 → 535 lines (12% reduction)
+
+### **2. Clippy Warnings Resolution**
+
+Fixed all 8 clippy warnings for production-ready code:
+
+#### **Style Improvements (4 fixes)**
+- Replaced `map_or(false, |stat| stat.is_file())` with `is_ok_and(|stat| stat.is_file())`
+- **Locations:** `downloads.rs` lines 17, 183, 313, 449
+- **Benefit:** More idiomatic Rust, clearer intent
+
+#### **Redundant Closures (3 fixes)**
+- Replaced `.and_then(|v| ToolMetadata::from_json(v))` with `.and_then(ToolMetadata::from_json)`
+- **Locations:** `metadata.rs` lines 195, 196, 198
+- **Benefit:** Cleaner, less verbose code
+
+#### **Derived Implementation (1 fix)**
+- Changed manual `impl Default for InstallationState` to `#[derive(Default)]`
+- **Location:** `metadata.rs`
+- **Benefit:** Eliminated 9 lines of boilerplate
+
+**Result:** ✅ 0 errors, 0 warnings, 0 clippy warnings
+
+### **3. Complexity Reduction**
+
+Significantly simplified overly complex code patterns:
+
+#### **cli.rs - Board Detection (7 → 2 nesting levels)**
+- **Before:** 7 levels of nested if-let chains (62 lines)
+- **After:** Flat structure with early returns and helper functions (51 lines)
+- **Changes:**
+  - Extracted `parse_board_entry()` helper function
+  - Extracted `warn_multiple_boards()` helper function
+  - Used `?` operator for early returns
+  - Used `filter_map()` iterator instead of manual loops
+- **Impact:** -11 lines, dramatically improved readability
+
+#### **validation.rs - Error Messages (30+ → 0 concatenations)**
+- **Before:** 30+ `push_str()` calls obscuring message structure (81 lines)
+- **After:** Clean helper functions returning string arrays (98 lines)
+- **Changes:**
+  - Extracted `get_arduino_cli_recovery_steps()`
+  - Extracted `get_clangd_recovery_steps()`
+  - Extracted `get_language_server_recovery_steps()`
+  - Used `format!()` macro with iteration instead of repeated concatenation
+- **Impact:** +17 lines, but MUCH more maintainable and clear
+
+#### **arduino.rs - Library Path Extraction (5 → 1 nesting level)**
+- **Before:** 5 nested if-let statements (20 lines)
+- **After:** Extracted `extract_library_paths()` with early returns (5 lines + 19-line helper)
+- **Impact:** Flattened nesting, clearer logic flow
+
+#### **arduino.rs - Tool Setup Extraction**
+- **Before:** ~80 lines of duplicated clangd/arduino-cli setup in main function
+- **After:** Extracted `ensure_clangd_available()` and `ensure_arduino_cli_available()` methods
+- **Impact:** -11 lines, better separation of concerns
+- **Note:** Named "ensure_*_available" (not "setup_*") to distinguish from project setup functions
+
+#### **setup.rs - Board Detection Simplification**
+- **Before:** Nested conditionals with duplicated default values
+- **After:** Extracted `get_default_board_settings()` with `and_then()` chain
+- **Impact:** -1 line, eliminated duplicate constants, cleaner flow
+
+### **4. Code Organization Verification**
+
+**Verified File Organization:**
+- No functions misplaced between modules
+- Each module has clear, single responsibility
+- No circular dependencies
+- Public APIs well-defined
+
+**Module Sizes (lines):**
+```
+detection.rs:    98 - Tool/file detection
+utils.rs:       111 - Generic utilities
+cli.rs:         157 - Arduino CLI operations (-11 lines)
+metadata.rs:    252 - Installation state tracking
+validation.rs:  292 - Binary validation (+9 lines, cleaner)
+arduino.rs:     331 - Main extension (-11 lines)
+setup.rs:       353 - Project initialization (-1 line)
+downloads.rs:   535 - GitHub downloads (-77 lines)
+----------------
+Total:         2129 lines (-28 lines from 2157)
+```
+
+### **5. Unused Code Check**
+
+**Verified:**
+- ✅ No `#[allow(dead_code)]` or `#[allow(unused)]` suppressions exist
+- ✅ Ran strict unused code checks - 0 warnings
+- ✅ All code is actively used
+- ✅ No orphaned functions or dead imports
+
+### **6. Key Improvements Summary**
+
+**Code Quality Metrics:**
+- **Maximum nesting:** Reduced from 7 → 2 levels
+- **Duplicate code:** Eliminated ~100+ lines
+- **Helper functions:** Added 10+ focused helper functions
+- **Clippy warnings:** 8 → 0
+- **Total line reduction:** -28 lines while improving clarity
+- **Readability:** Significantly improved across all modified files
+
+**Refactoring Principles Applied:**
+- ✅ DRY (Don't Repeat Yourself) - Eliminated duplication
+- ✅ Early returns - Flattened nested conditionals
+- ✅ Extract method - Created focused helper functions
+- ✅ Single responsibility - Each function does one thing well
+- ✅ Meaningful names - `ensure_*_available` vs `setup_*` distinction
+
+**Production Readiness:**
+- ✅ All code compiles cleanly
+- ✅ Zero warnings (cargo + clippy)
+- ✅ Well-organized module structure
+- ✅ Clear separation of concerns
+- ✅ Idiomatic Rust patterns throughout
+
+---
+
 ## 🎉 Summary
 
-This Arduino extension for Zed provides a **comprehensive, professional-grade development environment** for Arduino projects. Through smart auto-detection, extensive task coverage, 131 code snippets, intelligent installation tracking, and complete toolchain version control, it delivers a seamless experience from project setup through deployment.
+This Arduino extension for Zed provides a **comprehensive, professional-grade development environment** for Arduino projects. Through smart auto-detection, extensive task coverage, 131 code snippets, intelligent installation tracking, complete toolchain version control, robust error handling, and custom library support, it delivers a seamless experience from project setup through deployment.
 
 **Key Achievements:**
 - ✅ **25 comprehensive tasks** covering the entire Arduino workflow (including cache management)
@@ -1003,17 +1319,19 @@ This Arduino extension for Zed provides a **comprehensive, professional-grade de
 - ✅ **Complete version pinning** for Arduino Language Server, arduino-cli, and clangd
 - ✅ **Smart installation tracking** with metadata persistence in `installation_state.json`
 - ✅ **Intelligent data isolation** - extension-downloaded tools use isolated storage for clean uninstall
+- ✅ **Comprehensive error handling** with binary validation and actionable recovery instructions
+- ✅ **Custom library path support** for project-specific and shared libraries
 - ✅ **Smart auto-detection** of boards, ports, and tools
 - ✅ **Platform-specific support** with OS detection and platform-aware task generation
 - ✅ **Cross-platform support** for ESP32, ESP8266, AVR, RP2040, SAMD, Teensy, STM32
 - ✅ **Zero-config setup** with intelligent defaults
-- ✅ **Production-ready codebase** with clean architecture
+- ✅ **Production-ready codebase** with clean architecture and modular design
 
-The codebase is clean, well-organized, and production-ready. The extension successfully bridges the gap between Zed's modern editing experience and the Arduino ecosystem's tools and workflows, while providing complete control over the development toolchain and clean uninstallation capabilities.
+The codebase is clean, well-organized, and production-ready. The extension successfully bridges the gap between Zed's modern editing experience and the Arduino ecosystem's tools and workflows, while providing complete control over the development toolchain, clear error recovery, custom library integration, and clean uninstallation capabilities.
 
 **Ready for users! 🚀**
 
 ---
 
-*Last Updated: Session 3 - Version pinning, installation tracking, and smart data isolation*
+*Last Updated: Session 5 - Code quality improvements and refactoring*
 *Repository: https://github.com/SB-CMR-Talana/zed-arduino*

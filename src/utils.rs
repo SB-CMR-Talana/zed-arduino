@@ -1,24 +1,5 @@
 use zed_extension_api::{self as zed, settings::LspSettings};
 
-/// Convert platform/arch to strings for GitHub release asset names
-pub fn platform_strings(
-    platform: zed::Os,
-    arch: zed::Architecture,
-) -> (&'static str, &'static str) {
-    let os_str = match platform {
-        zed::Os::Mac => "macOS",
-        zed::Os::Linux => "Linux",
-        zed::Os::Windows => "Windows",
-    };
-    let arch_str = match arch {
-        zed::Architecture::Aarch64 => "ARM64",
-        zed::Architecture::X86 => "32bit",
-        zed::Architecture::X8664 => "64bit",
-    };
-    (os_str, arch_str)
-}
-
-/// Get boolean setting from LSP config (returns default if not found)
 pub fn get_setting(worktree: &zed::Worktree, key: &str, default: bool) -> bool {
     LspSettings::for_worktree("arduino", worktree)
         .ok()
@@ -64,7 +45,10 @@ pub fn get_library_paths(worktree: &zed::Worktree) -> Vec<String> {
         .collect()
 }
 
-/// Get argument value from command line args (e.g., get value after "-fqbn")
+pub fn has_arg(args: &[String], flag: &str) -> bool {
+    args.iter().any(|arg| arg == flag)
+}
+
 pub fn get_arg_value<'a>(args: &'a [String], flag: &str) -> Option<&'a str> {
     args.iter()
         .position(|a| a == flag)

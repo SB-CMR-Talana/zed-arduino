@@ -5,6 +5,36 @@ use zed_extension_api::{self as zed, Result};
 use crate::metadata::InstallationState;
 use crate::utils::get_setting;
 
+fn get_extension_readme_path() -> String {
+    std::env::current_dir()
+        .ok()
+        .and_then(|p| p.join("README.md").to_str().map(String::from))
+        .unwrap_or_else(|| {
+            let (platform, _) = zed::current_platform();
+            match platform {
+                zed::Os::Linux => "~/.local/share/zed/extensions/arduino/README.md".to_string(),
+                zed::Os::Mac => {
+                    "~/Library/Application Support/Zed/extensions/arduino/README.md".to_string()
+                }
+                zed::Os::Windows => "%APPDATA%\\Zed\\extensions\\arduino\\README.md".to_string(),
+            }
+        })
+}
+
+fn get_default_board_settings(worktree: &zed::Worktree) -> (String, String) {
+    const DEFAULT_FQBN: &str = "REPLACE_WITH_YOUR_BOARD_FQBN";
+    const DEFAULT_PORT: &str = "REPLACE_WITH_YOUR_PORT";
+
+    worktree
+        .which("arduino-cli")
+        .and_then(|cli_path| crate::cli::detect_connected_board(&cli_path))
+        .map(|(port, fqbn)| {
+            eprintln!("Arduino: Detected board {} on port {}", fqbn, port);
+            (fqbn, port)
+        })
+        .unwrap_or_else(|| (DEFAULT_FQBN.to_string(), DEFAULT_PORT.to_string()))
+}
+
 /// Auto-generate .zed/settings.json with default Arduino configuration
 pub fn auto_generate_project_settings(worktree: &zed::Worktree) -> Result<()> {
     // Check if feature is enabled
@@ -25,38 +55,9 @@ pub fn auto_generate_project_settings(worktree: &zed::Worktree) -> Result<()> {
     fs::create_dir_all(&zed_dir).map_err(|e| format!("failed to create .zed directory: {}", e))?;
 
     // Try to detect connected board and use its values as defaults
-    let (default_fqbn, default_port) = if let Some(cli_path) = worktree.which("arduino-cli") {
-        if let Some((port, fqbn)) = crate::cli::detect_connected_board(&cli_path) {
-            eprintln!("Arduino: Detected board {} on port {}", fqbn, port);
-            (fqbn, port)
-        } else {
-            (
-                "REPLACE_WITH_YOUR_BOARD_FQBN".to_string(),
-                "REPLACE_WITH_YOUR_PORT".to_string(),
-            )
-        }
-    } else {
-        (
-            "REPLACE_WITH_YOUR_BOARD_FQBN".to_string(),
-            "REPLACE_WITH_YOUR_PORT".to_string(),
-        )
-    };
+    let (default_fqbn, default_port) = get_default_board_settings(worktree);
 
-    // Get actual extension installation path
-    let readme_path = std::env::current_dir()
-        .ok()
-        .and_then(|p| p.join("README.md").to_str().map(String::from))
-        .unwrap_or_else(|| {
-            // Fallback to OS-specific default path
-            let (platform, _) = zed::current_platform();
-            match platform {
-                zed::Os::Linux => "~/.local/share/zed/extensions/arduino/README.md".to_string(),
-                zed::Os::Mac => {
-                    "~/Library/Application Support/Zed/extensions/arduino/README.md".to_string()
-                }
-                zed::Os::Windows => "%APPDATA%\\Zed\\extensions\\arduino\\README.md".to_string(),
-            }
-        });
+    let readme_path = get_extension_readme_path();
 
     // Generate settings with detected or default values
     let default_settings = format!(
@@ -133,21 +134,7 @@ pub fn auto_generate_tasks(worktree: &zed::Worktree, state: &InstallationState) 
         ),
     };
 
-    // Get actual extension installation path
-    let readme_path = std::env::current_dir()
-        .ok()
-        .and_then(|p| p.join("README.md").to_str().map(String::from))
-        .unwrap_or_else(|| {
-            // Fallback to OS-specific default path
-            let (platform, _) = zed::current_platform();
-            match platform {
-                zed::Os::Linux => "~/.local/share/zed/extensions/arduino/README.md".to_string(),
-                zed::Os::Mac => {
-                    "~/Library/Application Support/Zed/extensions/arduino/README.md".to_string()
-                }
-                zed::Os::Windows => "%APPDATA%\\Zed\\extensions\\arduino\\README.md".to_string(),
-            }
-        });
+    let readme_path = get_extension_readme_path();
 
     // Default tasks template
     // Note: Tasks extract FQBN from .zed/settings.json automatically

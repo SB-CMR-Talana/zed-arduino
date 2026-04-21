@@ -107,62 +107,51 @@ pub fn generate_compilation_database(
     Ok(())
 }
 
-/// Detect connected Arduino board and return (port, fqbn) if found
-/// If multiple boards are detected, returns the first one and logs a warning
+fn parse_board_entry(board: &serde_json::Value) -> Option<(String, String)> {
+    let port_obj = board.get("port")?;
+    let boards_array = board.get("matching_boards")?.as_array()?;
+    let port_addr = port_obj.get("address")?.as_str()?;
+    let fqbn = boards_array.first()?.get("fqbn")?.as_str()?;
+    Some((port_addr.to_string(), fqbn.to_string()))
+}
+
+fn warn_multiple_boards(boards: &[(String, String)]) {
+    eprintln!("Arduino: Warning - Multiple boards detected:");
+    for (port, fqbn) in boards {
+        eprintln!("  - {} on {}", fqbn, port);
+    }
+    eprintln!(
+        "Arduino: Using first board: {} on {}",
+        boards[0].1, boards[0].0
+    );
+    eprintln!("Arduino: To use a different board, edit .zed/settings.json manually");
+}
+
 pub fn detect_connected_board(cli_path: &str) -> Option<(String, String)> {
     let output = Command::new(cli_path)
         .arg("board")
         .arg("list")
         .arg("--format")
         .arg("json")
-        .output();
+        .output()
+        .ok()?;
 
-    if let Ok(output) = output {
-        if output.status.success() {
-            if let Ok(stdout) = String::from_utf8(output.stdout) {
-                // Parse JSON output to extract port and FQBN
-                // JSON format: [{"matching_boards":[{"fqbn":"..."}],"port":{"address":"..."}}]
-                if let Ok(boards) = serde_json::from_str::<serde_json::Value>(&stdout) {
-                    if let Some(array) = boards.as_array() {
-                        // Collect all detected boards
-                        let mut detected_boards: Vec<(String, String)> = Vec::new();
-
-                        for board in array {
-                            if let (Some(port_obj), Some(boards_array)) = (
-                                board.get("port"),
-                                board.get("matching_boards").and_then(|b| b.as_array()),
-                            ) {
-                                if let (Some(port_addr), Some(fqbn)) = (
-                                    port_obj.get("address").and_then(|a| a.as_str()),
-                                    boards_array
-                                        .first()
-                                        .and_then(|b| b.get("fqbn"))
-                                        .and_then(|f| f.as_str()),
-                                ) {
-                                    detected_boards.push((port_addr.to_string(), fqbn.to_string()));
-                                }
-                            }
-                        }
-
-                        // Return first board, with warning if multiple found
-                        if let Some(first_board) = detected_boards.first() {
-                            if detected_boards.len() > 1 {
-                                eprintln!("Arduino: Warning - Multiple boards detected:");
-                                for (port, fqbn) in &detected_boards {
-                                    eprintln!("  - {} on {}", fqbn, port);
-                                }
-                                eprintln!(
-                                    "Arduino: Using first board: {} on {}",
-                                    first_board.1, first_board.0
-                                );
-                                eprintln!("Arduino: To use a different board, edit .zed/settings.json manually");
-                            }
-                            return Some(first_board.clone());
-                        }
-                    }
-                }
-            }
-        }
+    if !output.status.success() {
+        return None;
     }
-    None
+
+    let stdout = String::from_utf8(output.stdout).ok()?;
+    let boards_json: serde_json::Value = serde_json::from_str(&stdout).ok()?;
+    let boards_array = boards_json.as_array()?;
+
+    let detected_boards: Vec<(String, String)> =
+        boards_array.iter().filter_map(parse_board_entry).collect();
+
+    let first_board = detected_boards.first()?;
+
+    if detected_boards.len() > 1 {
+        warn_multiple_boards(&detected_boards);
+    }
+
+    Some(first_board.clone())
 }

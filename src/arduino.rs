@@ -55,7 +55,98 @@ impl ArduinoExtension {
         Ok(path)
     }
 
-    /// Setup automation features (auto-install core, auto-generate compile DB)
+    fn validate_and_use_fqbn<F>(&self, fqbn: &str, action: F)
+    where
+        F: FnOnce(&str),
+    {
+        if let Err(e) = cli::validate_fqbn(fqbn) {
+            eprintln!("Arduino: {}", e);
+        } else {
+            action(fqbn);
+        }
+    }
+
+    fn extract_library_paths(worktree: &zed::Worktree) -> Option<Vec<String>> {
+        let lsp_settings = LspSettings::for_worktree("arduino", worktree).ok()?;
+        let settings = lsp_settings.settings?;
+        let library_paths = settings.get("libraryPaths")?;
+        let paths_array = library_paths.as_array()?;
+
+        let paths: Vec<String> = paths_array
+            .iter()
+            .filter_map(|v| v.as_str())
+            .map(String::from)
+            .collect();
+
+        if paths.is_empty() {
+            None
+        } else {
+            Some(paths)
+        }
+    }
+
+    fn ensure_clangd_available(&mut self, args: &mut Vec<String>, worktree: &zed::Worktree) {
+        if let Some(clangd_path) = detection::find_clangd(worktree) {
+            self.installation_state
+                .record_clangd_from_system(clangd_path.clone(), metadata::ToolSource::ZedManaged);
+            self.installation_state.save().ok();
+            args.push("-clangd".to_string());
+            args.push(clangd_path);
+        } else {
+            match downloads::get_clangd_binary(worktree, &mut self.cached_clangd_path) {
+                Ok(clangd_path) => {
+                    let version = utils::extract_clangd_version(&clangd_path)
+                        .unwrap_or_else(|| "unknown".to_string());
+                    self.installation_state
+                        .record_clangd_download(&version, clangd_path.clone());
+                    self.installation_state.save().ok();
+                    args.push("-clangd".to_string());
+                    args.push(clangd_path);
+                }
+                Err(e) => {
+                    eprintln!("\n{}", e);
+                    eprintln!("\nArduino Extension will continue without clangd. IntelliSense features will be limited.");
+                    eprintln!("Basic syntax highlighting and compilation will still work.\n");
+                }
+            }
+        }
+    }
+
+    fn ensure_arduino_cli_available(
+        &mut self,
+        args: &mut Vec<String>,
+        worktree: &zed::Worktree,
+    ) -> Result<()> {
+        if let Some(cli_path) = worktree.which("arduino-cli") {
+            self.installation_state
+                .record_arduino_cli_from_path(cli_path.clone());
+            self.installation_state.save().ok();
+            args.push("-cli".to_string());
+            args.push(cli_path);
+        } else {
+            match downloads::get_arduino_cli_binary(worktree, &mut self.cached_arduino_cli_path) {
+                Ok(cli_path) => {
+                    let version = utils::extract_arduino_cli_version(&cli_path)
+                        .unwrap_or_else(|| "unknown".to_string());
+                    self.installation_state
+                        .record_arduino_cli_download(&version, cli_path.clone());
+                    self.installation_state.save().ok();
+
+                    setup::create_isolated_arduino_config(&self.installation_state).ok();
+
+                    args.push("-cli".to_string());
+                    args.push(cli_path);
+                }
+                Err(e) => {
+                    eprintln!("\n{}", e);
+                    eprintln!("\nArduino Extension cannot start without arduino-cli.");
+                    return Err("arduino-cli is required but could not be obtained. See error message above for recovery options.".to_string());
+                }
+            }
+        }
+        Ok(())
+    }
+
     fn setup_automation(&mut self, args: &[String], worktree: &zed::Worktree) {
         // Extract FQBN once and reuse it
         let fqbn = utils::get_arg_value(args, "-fqbn").map(|s| s.to_string());
@@ -63,20 +154,18 @@ impl ArduinoExtension {
         // Auto-install core if enabled and FQBN is specified
         if utils::get_setting(worktree, "autoInstallCore", false) {
             if let Some(ref fqbn) = fqbn {
-                // Validate FQBN format before using it
-                if let Err(e) = cli::validate_fqbn(fqbn) {
-                    eprintln!("Arduino: {}", e);
-                } else if let Some(core_id) = cli::extract_core_id(fqbn) {
-                    if let Some(cli_path) = utils::get_arg_value(args, "-cli") {
-                        if !cli::is_core_installed(cli_path, &core_id) {
-                            let config_path = utils::get_arg_value(args, "-cli-config");
-                            // Try to install core (ignore errors - not critical)
-                            if cli::install_core(cli_path, &core_id, config_path).is_ok() {
-                                eprintln!("Arduino: Installed core {} automatically", core_id);
+                self.validate_and_use_fqbn(fqbn, |fqbn| {
+                    if let Some(core_id) = cli::extract_core_id(fqbn) {
+                        if let Some(cli_path) = utils::get_arg_value(args, "-cli") {
+                            if !cli::is_core_installed(cli_path, &core_id) {
+                                let config_path = utils::get_arg_value(args, "-cli-config");
+                                if cli::install_core(cli_path, &core_id, config_path).is_ok() {
+                                    eprintln!("Arduino: Installed core {} automatically", core_id);
+                                }
                             }
                         }
                     }
-                }
+                });
             }
         }
 
@@ -85,25 +174,23 @@ impl ArduinoExtension {
             && !detection::check_compilation_database(worktree)
         {
             if let Some(ref fqbn) = fqbn {
-                // Validate FQBN format before using it
-                if let Err(e) = cli::validate_fqbn(fqbn) {
-                    eprintln!("Arduino: {}", e);
-                } else if let Some(cli_path) = utils::get_arg_value(args, "-cli") {
-                    let config_path = utils::get_arg_value(args, "-cli-config");
-                    let library_paths = utils::get_library_paths(worktree);
-                    // Try to generate (ignore errors - not critical)
-                    if cli::generate_compilation_database(
-                        cli_path,
-                        fqbn,
-                        config_path,
-                        &library_paths,
-                        worktree,
-                    )
-                    .is_ok()
-                    {
-                        eprintln!("Arduino: Generated compile_commands.json automatically");
+                self.validate_and_use_fqbn(fqbn, |fqbn| {
+                    if let Some(cli_path) = utils::get_arg_value(args, "-cli") {
+                        let config_path = utils::get_arg_value(args, "-cli-config");
+                        let library_paths = utils::get_library_paths(worktree);
+                        if cli::generate_compilation_database(
+                            cli_path,
+                            fqbn,
+                            config_path,
+                            &library_paths,
+                            worktree,
+                        )
+                        .is_ok()
+                        {
+                            eprintln!("Arduino: Generated compile_commands.json automatically");
+                        }
                     }
-                }
+                });
             }
         }
     }
@@ -164,90 +251,16 @@ impl zed::Extension for ArduinoExtension {
         // Get the path to the language server binary
         let command_path = self.language_server_binary_path(language_server_id, worktree)?;
 
-        // Check if the user already specified the -clangd flag in settings
-        let user_specified_clangd = args.iter().any(|arg| arg == "-clangd");
-        let user_specified_cli = args.iter().any(|arg| arg == "-cli");
-
-        if !user_specified_clangd {
-            // Try to find clangd in PATH or Zed-managed locations first
-            if let Some(clangd_path) = detection::find_clangd(worktree) {
-                // Found in system - track it
-                self.installation_state.record_clangd_from_system(
-                    clangd_path.clone(),
-                    metadata::ToolSource::ZedManaged,
-                );
-                self.installation_state.save().ok();
-                args.push("-clangd".to_string());
-                args.push(clangd_path);
-            } else {
-                // If not found, try downloading it
-                match downloads::get_clangd_binary(worktree, &mut self.cached_clangd_path) {
-                    Ok(clangd_path) => {
-                        // We downloaded it - track it
-                        if let Some(version) = utils::extract_clangd_version(&clangd_path) {
-                            self.installation_state
-                                .record_clangd_download(&version, clangd_path.clone());
-                        } else {
-                            self.installation_state
-                                .record_clangd_download("unknown", clangd_path.clone());
-                        }
-                        self.installation_state.save().ok();
-                        args.push("-clangd".to_string());
-                        args.push(clangd_path);
-                    }
-                    Err(e) => {
-                        // Non-critical - extension can work without clangd but with limited IntelliSense
-                        eprintln!("\n{}", e);
-                        eprintln!("\nArduino Extension will continue without clangd. IntelliSense features will be limited.");
-                        eprintln!("Basic syntax highlighting and compilation will still work.\n");
-                    }
-                }
-            }
+        if !utils::has_arg(&args, "-clangd") {
+            self.ensure_clangd_available(&mut args, worktree);
         }
 
-        if !user_specified_cli {
-            // Try to find arduino-cli in PATH first
-            if let Some(cli_path) = worktree.which("arduino-cli") {
-                // Found in PATH - use system installation
-                self.installation_state
-                    .record_arduino_cli_from_path(cli_path.clone());
-                self.installation_state.save().ok();
-                args.push("-cli".to_string());
-                args.push(cli_path);
-            } else {
-                // If not in PATH, try downloading it
-                match downloads::get_arduino_cli_binary(worktree, &mut self.cached_arduino_cli_path)
-                {
-                    Ok(cli_path) => {
-                        // We downloaded it - use isolated data directory
-                        if let Some(version) = crate::utils::extract_arduino_cli_version(&cli_path)
-                        {
-                            self.installation_state
-                                .record_arduino_cli_download(&version, cli_path.clone());
-                        } else {
-                            self.installation_state
-                                .record_arduino_cli_download("unknown", cli_path.clone());
-                        }
-                        self.installation_state.save().ok();
-
-                        // Create isolated config pointing to extension directory
-                        setup::create_isolated_arduino_config(&self.installation_state).ok();
-
-                        args.push("-cli".to_string());
-                        args.push(cli_path);
-                    }
-                    Err(e) => {
-                        // Critical error - arduino-cli is required
-                        eprintln!("\n{}", e);
-                        eprintln!("\nArduino Extension cannot start without arduino-cli.");
-                        return Err("arduino-cli is required but could not be obtained. See error message above for recovery options.".to_string());
-                    }
-                }
-            }
+        if !utils::has_arg(&args, "-cli") {
+            self.ensure_arduino_cli_available(&mut args, worktree)?;
         }
 
         // Auto-detect or auto-create arduino-cli config if not specified
-        let user_specified_cli_config = args.iter().any(|arg| arg == "-cli-config");
+        let user_specified_cli_config = utils::has_arg(&args, "-cli-config");
         if !user_specified_cli_config {
             // If we downloaded arduino-cli, use isolated config
             if self.installation_state.arduino_cli_uses_isolated_data() {
@@ -268,30 +281,12 @@ impl zed::Extension for ArduinoExtension {
             }
         }
 
-        // Add custom library paths if specified in settings
-        let user_specified_libraries = args.iter().any(|arg| arg == "-libraries");
+        let user_specified_libraries = utils::has_arg(&args, "-libraries");
         if !user_specified_libraries {
-            if let Ok(lsp_settings) = LspSettings::for_worktree("arduino", worktree) {
-                if let Some(settings) = lsp_settings.settings {
-                    if let Some(library_paths) = settings.get("libraryPaths") {
-                        if let Some(paths_array) = library_paths.as_array() {
-                            let mut paths: Vec<String> = Vec::new();
-                            for path_value in paths_array {
-                                if let Some(path_str) = path_value.as_str() {
-                                    paths.push(path_str.to_string());
-                                }
-                            }
-                            if !paths.is_empty() {
-                                args.push("-libraries".to_string());
-                                args.push(paths.join(","));
-                                eprintln!(
-                                    "Arduino: Using custom library paths: {}",
-                                    paths.join(", ")
-                                );
-                            }
-                        }
-                    }
-                }
+            if let Some(paths) = Self::extract_library_paths(worktree) {
+                args.push("-libraries".to_string());
+                args.push(paths.join(","));
+                eprintln!("Arduino: Using custom library paths: {}", paths.join(", "));
             }
         }
 
