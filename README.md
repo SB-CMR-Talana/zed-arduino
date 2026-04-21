@@ -25,19 +25,19 @@ Extension validates dependencies on startup and provides detailed recovery steps
 
 All settings go in `.zed/settings.json` under `lsp.arduino.settings`:
 
-| Setting | Type | Default | Description |
-|---------|------|---------|-------------|
-| port | string | "" | Serial port (e.g., /dev/ttyUSB0, COM3) |
-| libraryPaths | string[] | [] | Custom library directories (absolute or relative) |
-| githubRepo | string | "arduino/arduino-language-server" | Custom GitHub repo (owner/repo) |
-| languageServerVersion | string | "" | Pin language server version (e.g., "0.7.5") |
-| arduinoCliVersion | string | "" | Pin arduino-cli version (e.g., "1.0.4") |
-| clangdVersion | string | "" | Pin clangd version (e.g., "18.1.3") |
-| autoGenerateProjectSettings | boolean | true | Auto-create .zed/settings.json template |
-| autoDownloadCli | boolean | true | Auto-download arduino-cli if not in PATH |
-| autoCreateConfig | boolean | false | Auto-create arduino-cli.yaml if missing |
-| autoInstallCore | boolean | false | Auto-install board core from FQBN |
-| autoGenerateCompileDb | boolean | false | Auto-generate compile_commands.json |
+| Setting | Default | Description |
+|---------|---------|-------------|
+| port | | Serial port (e.g., /dev/ttyUSB0, COM3) |
+| libraryPaths | | Custom library directories (absolute or relative) |
+| githubRepo | "arduino/arduino-language-server" | Custom GitHub repo (owner/repo) |
+| languageServerVersion | | Pin language server version (e.g., "0.7.5") |
+| arduinoCliVersion | | Pin arduino-cli version (e.g., "1.0.4") |
+| clangdVersion | | Pin clangd version (e.g., "18.1.3") |
+| autoGenerateProjectSettings | true | Auto-create .zed/settings.json template |
+| autoDownloadCli | true | Auto-download arduino-cli if not in PATH |
+| autoCreateConfig | false | Auto-create arduino-cli.yaml if missing |
+| autoInstallCore | false | Auto-install board core from FQBN |
+| autoGenerateCompileDb | false | Auto-generate compile_commands.json |
 
 ### Minimal Configuration
 
