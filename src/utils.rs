@@ -109,3 +109,62 @@ pub fn auto_generate_project_settings(worktree: &zed::Worktree) -> Result<()> {
 
     Ok(())
 }
+
+/// Check and report missing dependencies and configuration issues
+#[allow(dead_code)]
+pub fn check_dependencies(worktree: &zed::Worktree) -> Vec<String> {
+    let mut warnings = Vec::new();
+
+    // Check for arduino-cli
+    if worktree.which("arduino-cli").is_none() {
+        warnings.push(
+            "arduino-cli not found in PATH. It will be auto-downloaded, or install manually with 'brew install arduino-cli'".to_string()
+        );
+    }
+
+    // Check for clangd
+    if crate::detection::find_clangd(worktree).is_none() {
+        warnings.push(
+            "clangd not found. IntelliSense will be limited. Open a C++ file to trigger Zed's automatic installation, or install manually.".to_string()
+        );
+    }
+
+    // Check for arduino-cli config
+    if crate::detection::find_arduino_cli_config(worktree).is_none() {
+        warnings.push(
+            "arduino-cli.yaml not found. Some features may be limited. Run 'arduino-cli config init' or enable 'autoCreateConfig'.".to_string()
+        );
+    }
+
+    // Check for compilation database
+    if !crate::detection::check_compilation_database(worktree) {
+        warnings.push(
+            "compile_commands.json not found. Run 'arduino-cli compile --fqbn YOUR:BOARD:FQBN --only-compilation-database .' or enable 'autoGenerateCompileDb'.".to_string()
+        );
+    }
+
+    // Check for FQBN in settings
+    if let Ok(lsp_settings) =
+        zed_extension_api::settings::LspSettings::for_worktree("arduino", worktree)
+    {
+        if let Some(binary) = lsp_settings.binary {
+            if let Some(args) = binary.arguments {
+                if !args.iter().any(|arg| arg == "-fqbn") {
+                    warnings.push(
+                        "FQBN not configured. Add '-fqbn' argument in .zed/settings.json (e.g., 'arduino:avr:uno')".to_string()
+                    );
+                }
+            } else {
+                warnings.push(
+                    "No binary arguments configured. Add '-fqbn' in .zed/settings.json".to_string(),
+                );
+            }
+        } else {
+            warnings.push(
+                "No binary configuration found. Add '-fqbn' in .zed/settings.json".to_string(),
+            );
+        }
+    }
+
+    warnings
+}

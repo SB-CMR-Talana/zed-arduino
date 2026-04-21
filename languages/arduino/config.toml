@@ -1,7 +1,9 @@
 name = "Arduino"
 grammar = "arduino"
-path_suffixes = ["ino"]
+path_suffixes = ["ino", "pde"]
+word_characters = ["_"]
 line_comments = ["// ", "/// ", "//! "]
+block_comment = ["/* ", " */"]
 autoclose_before = ";:.,=}])>"
 brackets = [
   { start = "{", end = "}", close = true, newline = true },
@@ -14,7 +16,7 @@ brackets = [
     "string",
     "comment",
   ] },
-  { start = "/*", end = " */", close = true, newline = false, not_in = [
+  { start = "/*", end = "*/", close = true, newline = false, not_in = [
     "string",
     "comment",
   ] },

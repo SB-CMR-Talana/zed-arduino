@@ -11,6 +11,27 @@ pub fn extract_core_id(fqbn: &str) -> Option<String> {
     }
 }
 
+/// Validate FQBN format (should be vendor:architecture:board or vendor:architecture:board:options)
+pub fn validate_fqbn(fqbn: &str) -> Result<()> {
+    let parts: Vec<&str> = fqbn.split(':').collect();
+    if parts.len() < 3 {
+        return Err(format!(
+            "Invalid FQBN format '{}'. Expected format: 'vendor:architecture:board' (e.g., 'arduino:avr:uno')",
+            fqbn
+        ));
+    }
+
+    // Check that parts are not empty
+    if parts[0].is_empty() || parts[1].is_empty() || parts[2].is_empty() {
+        return Err(format!(
+            "Invalid FQBN format '{}'. Vendor, architecture, and board cannot be empty.",
+            fqbn
+        ));
+    }
+
+    Ok(())
+}
+
 /// Check if board core is installed via `arduino-cli core list`
 pub fn is_core_installed(cli_path: &str, core_id: &str) -> bool {
     let output = Command::new(cli_path).arg("core").arg("list").output();

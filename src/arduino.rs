@@ -39,7 +39,10 @@ impl ArduinoExtension {
         // Auto-install core if enabled and FQBN is specified
         if utils::get_setting(worktree, "autoInstallCore", false) {
             if let Some(fqbn) = utils::get_arg_value(args, "-fqbn") {
-                if let Some(core_id) = cli::extract_core_id(fqbn) {
+                // Validate FQBN format before using it
+                if let Err(e) = cli::validate_fqbn(fqbn) {
+                    eprintln!("Arduino: {}", e);
+                } else if let Some(core_id) = cli::extract_core_id(fqbn) {
                     if let Some(cli_path) = utils::get_arg_value(args, "-cli") {
                         if !cli::is_core_installed(cli_path, &core_id) {
                             let config_path = utils::get_arg_value(args, "-cli-config");
@@ -58,7 +61,10 @@ impl ArduinoExtension {
             && !detection::check_compilation_database(worktree)
         {
             if let Some(fqbn) = utils::get_arg_value(args, "-fqbn") {
-                if let Some(cli_path) = utils::get_arg_value(args, "-cli") {
+                // Validate FQBN format before using it
+                if let Err(e) = cli::validate_fqbn(fqbn) {
+                    eprintln!("Arduino: {}", e);
+                } else if let Some(cli_path) = utils::get_arg_value(args, "-cli") {
                     let config_path = utils::get_arg_value(args, "-cli-config");
                     // Try to generate (ignore errors - not critical)
                     if cli::generate_compilation_database(cli_path, fqbn, config_path, worktree)

@@ -63,6 +63,15 @@
 
 (destructor_name (identifier) @function)
 
+; Arduino core functions - highlighted specially
+((function_declarator
+  declarator: (identifier) @function.special)
+ (#match? @function.special "^(setup|loop)$"))
+
+((call_expression
+  function: (identifier) @function.builtin)
+ (#match? @function.builtin "^(pinMode|digitalWrite|digitalRead|analogWrite|analogRead|analogReference|tone|noTone|shiftOut|shiftIn|pulseIn|pulseInLong|millis|micros|delay|delayMicroseconds|min|max|abs|constrain|map|pow|sqrt|sin|cos|tan|randomSeed|random|lowByte|highByte|bitRead|bitWrite|bitSet|bitClear|bit|attachInterrupt|detachInterrupt|interrupts|noInterrupts|Serial\\.begin|Serial\\.end|Serial\\.available|Serial\\.read|Serial\\.peek|Serial\\.flush|Serial\\.print|Serial\\.println|Serial\\.write)$"))
+
 ((namespace_identifier) @type
  (#match? @type "^[A-Z]"))
 
@@ -70,6 +79,10 @@
 (type_identifier) @type
 type :(primitive_type) @type.primitive
 (sized_type_specifier) @type.primitive
+
+; Arduino-specific types
+((type_identifier) @type.builtin
+ (#match? @type.builtin "^(String|boolean|byte|word)$"))
 
 (requires_clause
     constraint: (template_type
@@ -80,6 +93,10 @@ type :(primitive_type) @type.primitive
 
 ((identifier) @constant
  (#match? @constant "^_*[A-Z][A-Z\\d_]*$"))
+
+; Arduino-specific constants
+((identifier) @constant.builtin
+ (#match? @constant.builtin "^(HIGH|LOW|INPUT|OUTPUT|INPUT_PULLUP|LED_BUILTIN|A0|A1|A2|A3|A4|A5|A6|A7|A8|A9|A10|A11|A12|A13|A14|A15|CHANGE|FALLING|RISING|DEFAULT|INTERNAL|INTERNAL1V1|INTERNAL2V56|EXTERNAL|LSBFIRST|MSBFIRST|DEC|HEX|OCT|BIN)$"))
 
 (statement_identifier) @label
 (this) @variable.special
