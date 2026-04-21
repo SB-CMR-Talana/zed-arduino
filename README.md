@@ -220,19 +220,21 @@ Configure paths in `.zed/settings.json`:
 
 **No IntelliSense:**
 
-```bash
-arduino-cli compile --fqbn YOUR:BOARD:FQBN --only-compilation-database .
-```
+   ```bash
+   arduino-cli compile --fqbn YOUR:BOARD:FQBN --only-compilation-database .
+   ```
+   Restart Zed
 
-Restart Zed
 
 **Stale completions/errors:**
 
-Run task: **Arduino: Clear clangd Cache**, then restart Zed
+   Run task: **Arduino: Clear clangd Cache**, then restart Zed
+
 
 **Package installation issues:**
 
-Run task: **Arduino: Clear arduino-cli Cache**, then retry
+   Run task: **Arduino: Clear arduino-cli Cache**, then retry
+
 
 ## Complete Uninstall
 
