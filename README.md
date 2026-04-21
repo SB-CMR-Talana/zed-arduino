@@ -171,9 +171,25 @@ brew install arduino-cli clang
 ```
 
 **Linux:**
+
+Debian/Ubuntu:
 ```bash
-# Use your package manager (apt, dnf, pacman, zypper, etc.)
 sudo apt install arduino-cli clangd
+```
+
+Fedora:
+```bash
+sudo dnf install arduino-cli clang-tools-extra
+```
+
+Arch:
+```bash
+sudo pacman -S arduino-cli clang
+```
+
+openSUSE:
+```bash
+sudo zypper install arduino-cli clang
 ```
 
 **Windows:**
@@ -203,31 +219,40 @@ Configure paths in `.zed/settings.json`:
 ## Troubleshooting
 
 **No IntelliSense:**
+
 ```bash
 arduino-cli compile --fqbn YOUR:BOARD:FQBN --only-compilation-database .
-# Restart Zed
 ```
 
+Restart Zed
+
 **Stale completions/errors:**
+
 Run task: **Arduino: Clear clangd Cache**, then restart Zed
 
 **Package installation issues:**
+
 Run task: **Arduino: Clear arduino-cli Cache**, then retry
 
 ## Complete Uninstall
 
 1. Uninstall extension in Zed
-2. Close Zed completely
-3. Remove caches (optional):
+2. (Optional) Remove caches and data:
+   
+   Use tasks: Open an Arduino project and run **Arduino: Clear clangd Cache** and **Arduino: Clear arduino-cli Cache**
+   
+   Or manually:
    
    **Linux:**
    ```bash
    rm -r ~/.cache/arduino-cli/ ~/.cache/clangd/ .cache/clangd/
+   rm -r ~/.arduino15/  # If using system arduino-cli
    ```
    
    **macOS:**
    ```bash
    rm -r ~/Library/Caches/arduino-cli/ ~/.cache/clangd/ .cache/clangd/
+   rm -r ~/.arduino15/  # If using system arduino-cli
    ```
    
    **Windows (PowerShell):**
@@ -235,19 +260,16 @@ Run task: **Arduino: Clear arduino-cli Cache**, then retry
    Remove-Item -Recurse "$env:LOCALAPPDATA\arduino-cli\cache"
    Remove-Item -Recurse "$env:LOCALAPPDATA\clangd\cache"
    Remove-Item -Recurse ".cache\clangd"
+   Remove-Item -Recurse "$env:USERPROFILE\.arduino15"  # If using system arduino-cli
    ```
 
-4. Remove system Arduino data (if using system arduino-cli):
+3. (Optional) Remove Arduino configuration files:
    
-   **Linux/macOS:**
-   ```bash
-   rm -r ~/.arduino15/
-   ```
+   Project settings: `.zed/settings.json` in each Arduino project
    
-   **Windows (PowerShell):**
-   ```powershell
-   Remove-Item -Recurse "$env:USERPROFILE\.arduino15"
-   ```
+   Project tasks: `.zed/tasks.json` in each Arduino project
+   
+   Global settings: Remove Arduino LSP settings from Zed's global settings file
 
 ## License
 
