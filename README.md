@@ -225,11 +225,13 @@ Configure paths in `.zed/settings.json`:
    ```
    Restart Zed
 
+<br>
 
 **Stale completions/errors:**
 
    Run task: **Arduino: Clear clangd Cache**, then restart Zed
 
+<br>
 
 **Package installation issues:**
 
