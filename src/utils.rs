@@ -1,5 +1,12 @@
+// Utility functions for LSP settings, argument parsing, and paths.
+
 use zed_extension_api::{self as zed, settings::LspSettings};
 
+// ============================================================================
+// Settings
+// ============================================================================
+
+/// Get boolean setting from LSP config
 pub fn get_setting(worktree: &zed::Worktree, key: &str, default: bool) -> bool {
     LspSettings::for_worktree("arduino", worktree)
         .ok()
@@ -45,17 +52,27 @@ pub fn get_library_paths(worktree: &zed::Worktree) -> Vec<String> {
         .collect()
 }
 
+// ============================================================================
+// Arguments
+// ============================================================================
+
+/// Check if argument flag exists in args
 pub fn has_arg(args: &[String], flag: &str) -> bool {
     args.iter().any(|arg| arg == flag)
 }
 
+/// Get value following a flag in args
 pub fn get_arg_value<'a>(args: &'a [String], flag: &str) -> Option<&'a str> {
     args.iter()
         .position(|a| a == flag)
         .and_then(|idx| args.get(idx + 1).map(|s| s.as_str()))
 }
 
-/// Get home directory from environment (cross-platform: HOME on Unix, USERPROFILE on Windows)
+// ============================================================================
+// Paths
+// ============================================================================
+
+/// Get home directory from environment (HOME on Unix, USERPROFILE on Windows)
 pub fn get_home(worktree: &zed::Worktree) -> Option<String> {
     use std::collections::HashMap;
     let shell_env: HashMap<String, String> = worktree.shell_env().into_iter().collect();
@@ -63,49 +80,4 @@ pub fn get_home(worktree: &zed::Worktree) -> Option<String> {
         .get("HOME")
         .or_else(|| shell_env.get("USERPROFILE"))
         .cloned()
-}
-
-/// Extract version from arduino-cli binary path (e.g., "arduino-cli-1.0.4/arduino-cli" -> "1.0.4")
-pub fn extract_arduino_cli_version(path: &str) -> Option<String> {
-    let parts: Vec<&str> = path.split('/').collect();
-    if parts.len() < 2 {
-        return None;
-    }
-
-    let dir_name = parts[parts.len() - 2];
-    if let Some(version) = dir_name.strip_prefix("arduino-cli-") {
-        return Some(version.to_string());
-    }
-
-    None
-}
-
-/// Extract version from language server binary path (e.g., "arduino-language-server-0.7.5/arduino-language-server" -> "0.7.5")
-pub fn extract_language_server_version(path: &str) -> Option<String> {
-    let parts: Vec<&str> = path.split('/').collect();
-    if parts.len() < 2 {
-        return None;
-    }
-
-    let dir_name = parts[parts.len() - 2];
-    if let Some(version) = dir_name.strip_prefix("arduino-language-server-") {
-        return Some(version.to_string());
-    }
-
-    None
-}
-
-/// Extract version from clangd binary path (e.g., "clangd-18.1.3/clangd_18.1.3/bin/clangd" -> "18.1.3")
-pub fn extract_clangd_version(path: &str) -> Option<String> {
-    let parts: Vec<&str> = path.split('/').collect();
-    if parts.is_empty() {
-        return None;
-    }
-
-    let dir_name = parts[0];
-    if let Some(version) = dir_name.strip_prefix("clangd-") {
-        return Some(version.to_string());
-    }
-
-    None
 }

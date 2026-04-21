@@ -1,17 +1,13 @@
+//! Arduino CLI wrapper functions for FQBN validation, core management, compilation, and board detection.
+
 use std::process::Command;
 use zed_extension_api::{self as zed, serde_json, Result};
 
-/// Extract core ID from FQBN (e.g., "esp32:esp32" from "esp32:esp32:esp32s3")
-pub fn extract_core_id(fqbn: &str) -> Option<String> {
-    let parts: Vec<&str> = fqbn.split(':').collect();
-    if parts.len() >= 2 {
-        Some(format!("{}:{}", parts[0], parts[1]))
-    } else {
-        None
-    }
-}
+// ============================================================================
+// VALIDATION
+// ============================================================================
 
-/// Validate FQBN format (should be vendor:architecture:board or vendor:architecture:board:options)
+/// Validate FQBN format (vendor:architecture:board or vendor:architecture:board:options)
 pub fn validate_fqbn(fqbn: &str) -> Result<()> {
     let parts: Vec<&str> = fqbn.split(':').collect();
     if parts.len() < 3 {
@@ -31,6 +27,20 @@ pub fn validate_fqbn(fqbn: &str) -> Result<()> {
 
     Ok(())
 }
+
+/// Extract core ID from FQBN (e.g., "esp32:esp32" from "esp32:esp32:esp32s3")
+pub fn extract_core_id(fqbn: &str) -> Option<String> {
+    let parts: Vec<&str> = fqbn.split(':').collect();
+    if parts.len() >= 2 {
+        Some(format!("{}:{}", parts[0], parts[1]))
+    } else {
+        None
+    }
+}
+
+// ============================================================================
+// CORE MANAGEMENT
+// ============================================================================
 
 /// Check if board core is installed via `arduino-cli core list`
 pub fn is_core_installed(cli_path: &str, core_id: &str) -> bool {
@@ -66,6 +76,10 @@ pub fn install_core(cli_path: &str, core_id: &str, config_path: Option<&str>) ->
 
     Ok(())
 }
+
+// ============================================================================
+// COMPILATION
+// ============================================================================
 
 /// Generate compile_commands.json for clangd (10-30 seconds)
 pub fn generate_compilation_database(
@@ -107,6 +121,11 @@ pub fn generate_compilation_database(
     Ok(())
 }
 
+// ============================================================================
+// BOARD DETECTION
+// ============================================================================
+
+/// Parse board entry from JSON and extract port address and FQBN
 fn parse_board_entry(board: &serde_json::Value) -> Option<(String, String)> {
     let port_obj = board.get("port")?;
     let boards_array = board.get("matching_boards")?.as_array()?;
@@ -115,6 +134,7 @@ fn parse_board_entry(board: &serde_json::Value) -> Option<(String, String)> {
     Some((port_addr.to_string(), fqbn.to_string()))
 }
 
+/// Warn user when multiple boards are detected
 fn warn_multiple_boards(boards: &[(String, String)]) {
     eprintln!("Arduino: Warning - Multiple boards detected:");
     for (port, fqbn) in boards {
@@ -127,6 +147,7 @@ fn warn_multiple_boards(boards: &[(String, String)]) {
     eprintln!("Arduino: To use a different board, edit .zed/settings.json manually");
 }
 
+/// Detect connected Arduino board and return (port, FQBN)
 pub fn detect_connected_board(cli_path: &str) -> Option<(String, String)> {
     let output = Command::new(cli_path)
         .arg("board")

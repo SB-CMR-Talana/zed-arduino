@@ -1,3 +1,6 @@
+// Arduino extension for Zed: manages Language Server Protocol integration,
+// tool detection/installation, and automated project setup for Arduino development.
+
 mod cli;
 mod detection;
 mod downloads;
@@ -17,6 +20,11 @@ struct ArduinoExtension {
 }
 
 impl ArduinoExtension {
+    // ============================================================================
+    // Core Tool Setup
+    // ============================================================================
+
+    // Get language server binary path from settings, PATH, cache, or download
     fn language_server_binary_path(
         &mut self,
         language_server_id: &LanguageServerId,
@@ -26,7 +34,6 @@ impl ArduinoExtension {
         if let Ok(lsp_settings) = LspSettings::for_worktree("arduino", worktree) {
             if let Some(binary) = lsp_settings.binary {
                 if let Some(path) = binary.path {
-                    // Manual path specified by user
                     self.installation_state
                         .record_language_server_manual(path.clone());
                     self.installation_state.save().ok();
@@ -35,15 +42,15 @@ impl ArduinoExtension {
             }
         }
 
-        // Use downloads module to get the binary (checks PATH, cache, then downloads)
+        // Use downloads module to get binary (checks PATH, cache, then downloads)
         let path = downloads::get_language_server_binary(
             language_server_id,
             worktree,
             &mut self.cached_language_server_path,
         )?;
 
-        // Track that we downloaded it
-        if let Some(version) = utils::extract_language_server_version(&path) {
+        // Track downloaded version
+        if let Some(version) = downloads::extract_language_server_version(&path) {
             self.installation_state
                 .record_language_server_download(&version, path.clone());
         } else {
@@ -55,36 +62,7 @@ impl ArduinoExtension {
         Ok(path)
     }
 
-    fn validate_and_use_fqbn<F>(&self, fqbn: &str, action: F)
-    where
-        F: FnOnce(&str),
-    {
-        if let Err(e) = cli::validate_fqbn(fqbn) {
-            eprintln!("Arduino: {}", e);
-        } else {
-            action(fqbn);
-        }
-    }
-
-    fn extract_library_paths(worktree: &zed::Worktree) -> Option<Vec<String>> {
-        let lsp_settings = LspSettings::for_worktree("arduino", worktree).ok()?;
-        let settings = lsp_settings.settings?;
-        let library_paths = settings.get("libraryPaths")?;
-        let paths_array = library_paths.as_array()?;
-
-        let paths: Vec<String> = paths_array
-            .iter()
-            .filter_map(|v| v.as_str())
-            .map(String::from)
-            .collect();
-
-        if paths.is_empty() {
-            None
-        } else {
-            Some(paths)
-        }
-    }
-
+    // Find or download clangd and add to args
     fn ensure_clangd_available(&mut self, args: &mut Vec<String>, worktree: &zed::Worktree) {
         if let Some(clangd_path) = detection::find_clangd(worktree) {
             self.installation_state
@@ -95,7 +73,7 @@ impl ArduinoExtension {
         } else {
             match downloads::get_clangd_binary(worktree, &mut self.cached_clangd_path) {
                 Ok(clangd_path) => {
-                    let version = utils::extract_clangd_version(&clangd_path)
+                    let version = downloads::extract_clangd_version(&clangd_path)
                         .unwrap_or_else(|| "unknown".to_string());
                     self.installation_state
                         .record_clangd_download(&version, clangd_path.clone());
@@ -112,6 +90,7 @@ impl ArduinoExtension {
         }
     }
 
+    // Find or download arduino-cli and add to args
     fn ensure_arduino_cli_available(
         &mut self,
         args: &mut Vec<String>,
@@ -126,7 +105,7 @@ impl ArduinoExtension {
         } else {
             match downloads::get_arduino_cli_binary(worktree, &mut self.cached_arduino_cli_path) {
                 Ok(cli_path) => {
-                    let version = utils::extract_arduino_cli_version(&cli_path)
+                    let version = downloads::extract_arduino_cli_version(&cli_path)
                         .unwrap_or_else(|| "unknown".to_string());
                     self.installation_state
                         .record_arduino_cli_download(&version, cli_path.clone());
@@ -147,8 +126,48 @@ impl ArduinoExtension {
         Ok(())
     }
 
+    // ============================================================================
+    // Configuration Extraction
+    // ============================================================================
+
+    // Extract library paths from LSP settings
+    fn extract_library_paths(worktree: &zed::Worktree) -> Option<Vec<String>> {
+        let lsp_settings = LspSettings::for_worktree("arduino", worktree).ok()?;
+        let settings = lsp_settings.settings?;
+        let library_paths = settings.get("libraryPaths")?;
+        let paths_array = library_paths.as_array()?;
+
+        let paths: Vec<String> = paths_array
+            .iter()
+            .filter_map(|v| v.as_str())
+            .map(String::from)
+            .collect();
+
+        if paths.is_empty() {
+            None
+        } else {
+            Some(paths)
+        }
+    }
+
+    // Validate FQBN format before use
+    fn validate_and_use_fqbn<F>(&self, fqbn: &str, action: F)
+    where
+        F: FnOnce(&str),
+    {
+        if let Err(e) = cli::validate_fqbn(fqbn) {
+            eprintln!("Arduino: {}", e);
+        } else {
+            action(fqbn);
+        }
+    }
+
+    // ============================================================================
+    // Automation
+    // ============================================================================
+
+    // Handle auto-install core and auto-generate compile_commands.json
     fn setup_automation(&mut self, args: &[String], worktree: &zed::Worktree) {
-        // Extract FQBN once and reuse it
         let fqbn = utils::get_arg_value(args, "-fqbn").map(|s| s.to_string());
 
         // Auto-install core if enabled and FQBN is specified
@@ -223,16 +242,16 @@ impl zed::Extension for ArduinoExtension {
             self.installation_state.save().ok();
         }
 
-        // Auto-generate .zed/settings.json if it doesn't exist and feature is enabled
+        // Auto-generate .zed/settings.json if enabled
         setup::auto_generate_project_settings(worktree).ok();
 
-        // Auto-generate .zed/tasks.json if it doesn't exist and feature is enabled
+        // Auto-generate .zed/tasks.json if enabled
         setup::auto_generate_tasks(worktree, &self.installation_state).ok();
 
         // Check dependencies and report any issues
         validation::report_dependencies(worktree);
 
-        // Get args and env from LSP settings first
+        // Get args and env from LSP settings
         let mut args: Vec<String> = Vec::new();
         let mut env: HashMap<String, String> = HashMap::new();
 
@@ -248,7 +267,7 @@ impl zed::Extension for ArduinoExtension {
             }
         }
 
-        // Get the path to the language server binary
+        // Get the language server binary path
         let command_path = self.language_server_binary_path(language_server_id, worktree)?;
 
         if !utils::has_arg(&args, "-clangd") {
@@ -259,11 +278,11 @@ impl zed::Extension for ArduinoExtension {
             self.ensure_arduino_cli_available(&mut args, worktree)?;
         }
 
-        // Auto-detect or auto-create arduino-cli config if not specified
+        // Auto-detect or auto-create arduino-cli config
         let user_specified_cli_config = utils::has_arg(&args, "-cli-config");
         if !user_specified_cli_config {
-            // If we downloaded arduino-cli, use isolated config
             if self.installation_state.arduino_cli_uses_isolated_data() {
+                // Use isolated config for downloaded arduino-cli
                 let isolated_config = "arduino-cli-isolated.yaml";
                 args.push("-cli-config".to_string());
                 args.push(isolated_config.to_string());
@@ -290,17 +309,14 @@ impl zed::Extension for ArduinoExtension {
             }
         }
 
-        // Run automation features (auto-install cores, auto-generate compile DB)
+        // Run automation features
         self.setup_automation(&args, worktree);
 
-        // Determine environment variables.
-        // Always start with shell_env so PATH, HOME, etc. are present,
-        // then let any user-specified env vars override those defaults.
+        // Merge shell env with user-specified env vars (user settings override defaults)
         let default_env = match zed::current_platform().0 {
             zed::Os::Mac | zed::Os::Linux => worktree.shell_env(),
             zed::Os::Windows => Vec::new(),
         };
-        // Insert shell_env first, then user settings override
         let mut merged_env: HashMap<String, String> = default_env.into_iter().collect();
         merged_env.extend(env);
         env = merged_env;
@@ -317,8 +333,7 @@ impl zed::Extension for ArduinoExtension {
         _language_server_id: &zed::LanguageServerId,
         worktree: &zed::Worktree,
     ) -> Result<Option<serde_json::Value>> {
-        // This function provides the `workspace/configuration` response to the language server
-        // Get the 'settings' section from the arduino LSP settings in Zed
+        // Provide workspace/configuration response from arduino LSP settings
         let settings = LspSettings::for_worktree("arduino", worktree)
             .ok()
             .and_then(|lsp_settings| lsp_settings.settings.clone())

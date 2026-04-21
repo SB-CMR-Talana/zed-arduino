@@ -1,3 +1,6 @@
+// Downloads and manages Arduino Language Server, arduino-cli, and clangd binaries.
+// Checks PATH first, uses cached versions when valid, and downloads from GitHub releases when needed.
+
 use std::fs;
 use zed_extension_api::{self as zed, LanguageServerId, Result};
 
@@ -7,75 +10,9 @@ enum CachedVersionStatus {
     VersionMismatch,
 }
 
-fn check_cached_version(
-    cached_path: &Option<String>,
-    desired_version: &Option<String>,
-    version_extractor: fn(&str) -> Option<String>,
-    tool_name: &str,
-) -> CachedVersionStatus {
-    if let Some(path) = cached_path.as_ref() {
-        if fs::metadata(path).is_ok_and(|stat| stat.is_file()) {
-            if let Some(cached_version) = version_extractor(path) {
-                match desired_version {
-                    Some(desired) if cached_version == *desired => {
-                        return CachedVersionStatus::Valid;
-                    }
-                    None => {
-                        return CachedVersionStatus::NeedsUpdate;
-                    }
-                    Some(desired) => {
-                        eprintln!(
-                            "Arduino: Cached {} version ({}) doesn't match desired version ({}), re-downloading...",
-                            tool_name, cached_version, desired
-                        );
-                        return CachedVersionStatus::VersionMismatch;
-                    }
-                }
-            }
-        }
-    }
-    CachedVersionStatus::NeedsUpdate
-}
-
-fn get_absolute_path(relative_path: &str) -> Result<String> {
-    let work_dir =
-        std::env::current_dir().map_err(|e| format!("failed to get work directory: {e}"))?;
-    Ok(work_dir.join(relative_path).to_string_lossy().to_string())
-}
-
-fn validate_and_report_binary(
-    path: &str,
-    tool_name: &str,
-    validator: fn(&str) -> Result<String, String>,
-    auto_download: bool,
-) -> Result<()> {
-    match validator(path) {
-        Ok(version_info) => {
-            eprintln!("Arduino: {} validated: {}", tool_name, version_info);
-            Ok(())
-        }
-        Err(e) => {
-            let error_msg =
-                crate::validation::format_dependency_error(tool_name, &e, auto_download);
-            eprintln!("{}", error_msg);
-            Err(format!("{} validation failed: {}", tool_name, e))
-        }
-    }
-}
-
-fn platform_strings(platform: zed::Os, arch: zed::Architecture) -> (&'static str, &'static str) {
-    let os_str = match platform {
-        zed::Os::Mac => "macOS",
-        zed::Os::Linux => "Linux",
-        zed::Os::Windows => "Windows",
-    };
-    let arch_str = match arch {
-        zed::Architecture::Aarch64 => "ARM64",
-        zed::Architecture::X86 => "32bit",
-        zed::Architecture::X8664 => "64bit",
-    };
-    (os_str, arch_str)
-}
+// ============================================================================
+// Public downloaders
+// ============================================================================
 
 /// Get Arduino Language Server binary (checks PATH, downloads from GitHub if needed)
 pub fn get_language_server_binary(
@@ -87,7 +24,7 @@ pub fn get_language_server_binary(
         return Ok(path);
     }
 
-    // Get custom GitHub repo from settings (format: "owner/repo"), default to official repo
+    // Get custom GitHub repo from settings (format: "owner/repo")
     let repo =
         crate::utils::get_string_setting(worktree, "githubRepo", "arduino/arduino-language-server");
 
@@ -102,7 +39,7 @@ pub fn get_language_server_binary(
     if let CachedVersionStatus::Valid = check_cached_version(
         cached_path,
         &version_to_use,
-        crate::utils::extract_language_server_version,
+        extract_language_server_version,
         "Arduino Language Server",
     ) {
         return Ok(cached_path.as_ref().unwrap().clone());
@@ -123,7 +60,6 @@ pub fn get_language_server_binary(
     }
 
     let release = if let Some(ref version) = version_to_use {
-        // Download specific version
         fetch_specific_version(&repo, version).map_err(|e| {
             let auto_download = crate::utils::get_setting(worktree, "autoDownloadCli", true);
             crate::validation::format_dependency_error(
@@ -133,7 +69,6 @@ pub fn get_language_server_binary(
             )
         })?
     } else {
-        // Download latest version
         zed::latest_github_release(
             &repo,
             zed::GithubReleaseOptions {
@@ -240,7 +175,7 @@ pub fn get_arduino_cli_binary(
     if let CachedVersionStatus::Valid = check_cached_version(
         cached_path,
         &version_to_use,
-        crate::utils::extract_arduino_cli_version,
+        extract_arduino_cli_version,
         "arduino-cli",
     ) {
         return Ok(cached_path.as_ref().unwrap().clone());
@@ -256,7 +191,6 @@ pub fn get_arduino_cli_binary(
     }
 
     let release = if let Some(ref version) = version_to_use {
-        // Download specific version
         fetch_specific_version_cli(version).map_err(|e| {
             crate::validation::format_dependency_error(
                 "arduino-cli",
@@ -265,7 +199,6 @@ pub fn get_arduino_cli_binary(
             )
         })?
     } else {
-        // Download latest version
         zed::latest_github_release(
             "arduino/arduino-cli",
             zed::GithubReleaseOptions {
@@ -349,7 +282,7 @@ pub fn get_clangd_binary(
     worktree: &zed::Worktree,
     cached_path: &mut Option<String>,
 ) -> Result<String> {
-    // First check PATH
+    // Check PATH first
     if let Some(path) = worktree.which("clangd") {
         return Ok(path);
     }
@@ -370,7 +303,7 @@ pub fn get_clangd_binary(
     if let CachedVersionStatus::Valid = check_cached_version(
         cached_path,
         &version_to_use,
-        crate::utils::extract_clangd_version,
+        extract_clangd_version,
         "clangd",
     ) {
         return Ok(cached_path.as_ref().unwrap().clone());
@@ -383,7 +316,6 @@ pub fn get_clangd_binary(
     }
 
     let release = if let Some(ref version) = version_to_use {
-        // Download specific version
         fetch_specific_version_clangd(version).map_err(|e| {
             crate::validation::format_dependency_error(
                 "clangd",
@@ -392,7 +324,6 @@ pub fn get_clangd_binary(
             )
         })?
     } else {
-        // Download latest version
         zed::latest_github_release(
             "clangd/clangd",
             zed::GithubReleaseOptions {
@@ -411,7 +342,7 @@ pub fn get_clangd_binary(
 
     let (platform, arch) = zed::current_platform();
 
-    // clangd uses different naming conventions
+    // clangd uses different platform naming conventions
     let (os_str, arch_str) = match (platform, arch) {
         (zed::Os::Mac, zed::Architecture::Aarch64) => ("mac", "arm64"),
         (zed::Os::Mac, zed::Architecture::X8664) => ("mac", "x86_64"),
@@ -480,7 +411,85 @@ pub fn get_clangd_binary(
     Ok(absolute_path)
 }
 
-/// Clean up old versions, keeping only the current version directory
+// ============================================================================
+// Helper functions
+// ============================================================================
+
+// Checks if cached binary is valid, needs update, or has version mismatch
+fn check_cached_version(
+    cached_path: &Option<String>,
+    desired_version: &Option<String>,
+    version_extractor: fn(&str) -> Option<String>,
+    tool_name: &str,
+) -> CachedVersionStatus {
+    if let Some(path) = cached_path.as_ref() {
+        if fs::metadata(path).is_ok_and(|stat| stat.is_file()) {
+            if let Some(cached_version) = version_extractor(path) {
+                match desired_version {
+                    Some(desired) if cached_version == *desired => {
+                        return CachedVersionStatus::Valid;
+                    }
+                    None => {
+                        return CachedVersionStatus::NeedsUpdate;
+                    }
+                    Some(desired) => {
+                        eprintln!(
+                            "Arduino: Cached {} version ({}) doesn't match desired version ({}), re-downloading...",
+                            tool_name, cached_version, desired
+                        );
+                        return CachedVersionStatus::VersionMismatch;
+                    }
+                }
+            }
+        }
+    }
+    CachedVersionStatus::NeedsUpdate
+}
+
+// Converts relative path to absolute path
+fn get_absolute_path(relative_path: &str) -> Result<String> {
+    let work_dir =
+        std::env::current_dir().map_err(|e| format!("failed to get work directory: {e}"))?;
+    Ok(work_dir.join(relative_path).to_string_lossy().to_string())
+}
+
+// Validates binary and reports result
+fn validate_and_report_binary(
+    path: &str,
+    tool_name: &str,
+    validator: fn(&str) -> Result<String, String>,
+    auto_download: bool,
+) -> Result<()> {
+    match validator(path) {
+        Ok(version_info) => {
+            eprintln!("Arduino: {} validated: {}", tool_name, version_info);
+            Ok(())
+        }
+        Err(e) => {
+            let error_msg =
+                crate::validation::format_dependency_error(tool_name, &e, auto_download);
+            eprintln!("{}", error_msg);
+            Err(format!("{} validation failed: {}", tool_name, e))
+        }
+    }
+}
+
+// Returns platform and architecture strings
+fn platform_strings(platform: zed::Os, arch: zed::Architecture) -> (&'static str, &'static str) {
+    let os_str = match platform {
+        zed::Os::Mac => "macOS",
+        zed::Os::Linux => "Linux",
+        zed::Os::Windows => "Windows",
+    };
+    let arch_str = match arch {
+        zed::Architecture::Aarch64 => "ARM64",
+        zed::Architecture::X86 => "32bit",
+        zed::Architecture::X8664 => "64bit",
+    };
+    (os_str, arch_str)
+}
+
+// Removes old version directories, keeping only the current version
 fn cleanup_old_versions(prefix: &str, current_dir: &str) -> Result<()> {
     let entries =
         fs::read_dir(".").map_err(|e| format!("failed to list working directory: {e}"))?;
@@ -503,6 +512,56 @@ fn cleanup_old_versions(prefix: &str, current_dir: &str) -> Result<()> {
     Ok(())
 }
 
+// Extract version from language server binary path (e.g., "arduino-language-server-0.7.5/..." -> "0.7.5")
+pub fn extract_language_server_version(path: &str) -> Option<String> {
+    let parts: Vec<&str> = path.split('/').collect();
+    if parts.len() < 2 {
+        return None;
+    }
+
+    let dir_name = parts[parts.len() - 2];
+    if let Some(version) = dir_name.strip_prefix("arduino-language-server-") {
+        return Some(version.to_string());
+    }
+
+    None
+}
+
+// Extract version from arduino-cli binary path (e.g., "arduino-cli-1.0.4/..." -> "1.0.4")
+pub fn extract_arduino_cli_version(path: &str) -> Option<String> {
+    let parts: Vec<&str> = path.split('/').collect();
+    if parts.len() < 2 {
+        return None;
+    }
+
+    let dir_name = parts[parts.len() - 2];
+    if let Some(version) = dir_name.strip_prefix("arduino-cli-") {
+        return Some(version.to_string());
+    }
+
+    None
+}
+
+// Extract version from clangd binary path (e.g., "clangd-18.1.3/..." -> "18.1.3")
+pub fn extract_clangd_version(path: &str) -> Option<String> {
+    let parts: Vec<&str> = path.split('/').collect();
+    if parts.is_empty() {
+        return None;
+    }
+
+    let dir_name = parts[0];
+    if let Some(version) = dir_name.strip_prefix("clangd-") {
+        return Some(version.to_string());
+    }
+
+    None
+}
+
+// ============================================================================
+// Version-specific fetchers
+// ============================================================================
+
+// Fetches GitHub release by version tag
 fn fetch_github_release_by_version(
     repo: &str,
     version: &str,
@@ -522,14 +581,17 @@ fn fetch_github_release_by_version(
     })
 }
 
+// Fetches specific version of Arduino Language Server
 fn fetch_specific_version(repo: &str, version: &str) -> Result<zed::GithubRelease> {
     fetch_github_release_by_version(repo, version, "v")
 }
 
+// Fetches specific version of arduino-cli
 fn fetch_specific_version_cli(version: &str) -> Result<zed::GithubRelease> {
     fetch_github_release_by_version("arduino/arduino-cli", version, "v")
 }
 
+// Fetches specific version of clangd
 fn fetch_specific_version_clangd(version: &str) -> Result<zed::GithubRelease> {
     fetch_github_release_by_version("clangd/clangd", version, "release_")
 }

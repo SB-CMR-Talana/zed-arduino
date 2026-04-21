@@ -1,6 +1,12 @@
+//! Validation utilities for checking binary existence, functionality, and dependencies.
+
 use std::fs;
 use std::process::Command;
 use zed_extension_api::{self as zed};
+
+// ============================================================================
+// Binary Validators
+// ============================================================================
 
 /// Validate that a binary exists and is executable
 pub fn validate_binary_exists(path: &str) -> Result<(), String> {
@@ -23,7 +29,7 @@ pub fn validate_binary_exists(path: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Validate that arduino-cli works by running version command
+/// Validate arduino-cli by running version command
 pub fn validate_arduino_cli(path: &str) -> Result<String, String> {
     validate_binary_exists(path)?;
 
@@ -45,7 +51,7 @@ pub fn validate_arduino_cli(path: &str) -> Result<String, String> {
         .to_string())
 }
 
-/// Validate that clangd works by running version command
+/// Validate clangd by running version command
 pub fn validate_clangd(path: &str) -> Result<String, String> {
     validate_binary_exists(path)?;
 
@@ -67,7 +73,7 @@ pub fn validate_clangd(path: &str) -> Result<String, String> {
         .to_string())
 }
 
-/// Validate that arduino-language-server works by running version command
+/// Validate arduino-language-server by running version command
 pub fn validate_language_server(path: &str) -> Result<String, String> {
     validate_binary_exists(path)?;
 
@@ -77,7 +83,7 @@ pub fn validate_language_server(path: &str) -> Result<String, String> {
         .map_err(|e| format!("Failed to execute arduino-language-server at '{}': {}. The binary may be corrupted or incompatible with your system.", path, e))?;
 
     if !output.status.success() {
-        // Language server might not support -version, so just check if it exists and is executable
+        // Language server might not support -version, just verify it exists
         return Ok("installed".to_string());
     }
 
@@ -89,93 +95,11 @@ pub fn validate_language_server(path: &str) -> Result<String, String> {
         .to_string())
 }
 
-fn get_arduino_cli_recovery_steps(auto_download_enabled: bool) -> Vec<&'static str> {
-    if auto_download_enabled {
-        vec![
-            "1. Check your internet connection and restart Zed",
-            "2. Install manually: https://arduino.github.io/arduino-cli/installation/",
-            "   - macOS: brew install arduino-cli",
-            "   - Linux: curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh",
-            "   - Windows: Download from https://github.com/arduino/arduino-cli/releases",
-            "3. Disable auto-download and specify path in settings:",
-            "   \"autoDownloadCli\": false,",
-            "   \"binary\": { \"path\": \"/path/to/arduino-cli\" }",
-        ]
-    } else {
-        vec![
-            "1. Install arduino-cli: https://arduino.github.io/arduino-cli/installation/",
-            "   - macOS: brew install arduino-cli",
-            "   - Linux: curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh",
-            "   - Windows: Download from https://github.com/arduino/arduino-cli/releases",
-            "2. Ensure arduino-cli is in your PATH",
-            "3. Or enable auto-download in settings: \"autoDownloadCli\": true",
-        ]
-    }
-}
+// ============================================================================
+// Dependency Checks
+// ============================================================================
 
-fn get_clangd_recovery_steps() -> Vec<&'static str> {
-    vec![
-        "1. Open any C++ file in Zed to trigger automatic clangd installation",
-        "2. Install manually:",
-        "   - macOS: brew install llvm",
-        "   - Linux: apt install clangd (or equivalent for your distro)",
-        "   - Windows: Download from https://github.com/clangd/clangd/releases",
-        "3. IntelliSense will be limited without clangd, but basic features will work",
-    ]
-}
-
-fn get_language_server_recovery_steps(auto_download_enabled: bool) -> Vec<&'static str> {
-    if auto_download_enabled {
-        vec![
-            "1. Check your internet connection and restart Zed",
-            "2. Check GitHub API rate limits: https://api.github.com/rate_limit",
-            "3. Try using a custom fork in settings:",
-            "   \"githubRepo\": \"arduino/arduino-language-server\"",
-        ]
-    } else {
-        vec![
-            "1. Download from: https://github.com/arduino/arduino-language-server/releases",
-            "2. Specify path in settings:",
-            "   \"binary\": { \"path\": \"/path/to/arduino-language-server\" }",
-        ]
-    }
-}
-
-pub fn format_dependency_error(
-    tool_name: &str,
-    error: &str,
-    auto_download_enabled: bool,
-) -> String {
-    let header = format!(
-        "Arduino Extension Error: Failed to obtain {}\n  Reason: {}\n\nRecovery Options:\n",
-        tool_name, error
-    );
-
-    let recovery_steps = match tool_name {
-        "arduino-cli" => get_arduino_cli_recovery_steps(auto_download_enabled),
-        "clangd" => get_clangd_recovery_steps(),
-        "arduino-language-server" => get_language_server_recovery_steps(auto_download_enabled),
-        _ => vec![
-            "1. Check the extension logs for more details",
-            "2. Restart Zed and try again",
-        ],
-    };
-
-    let footer = "\nFor more help, see: https://github.com/itzderock/zed-arduino#troubleshooting\n";
-
-    format!(
-        "{}{}{}",
-        header,
-        recovery_steps
-            .iter()
-            .map(|s| format!("  {}\n", s))
-            .collect::<String>(),
-        footer
-    )
-}
-
-/// Check and report missing dependencies and configuration issues
-/// Returns a tuple of (errors, warnings) where errors are critical and warnings are optional
+/// Check for missing dependencies and configuration issues. Returns (errors, warnings).
 pub fn check_dependencies(worktree: &zed::Worktree) -> (Vec<String>, Vec<String>) {
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
@@ -227,7 +151,7 @@ pub fn check_dependencies(worktree: &zed::Worktree) -> (Vec<String>, Vec<String>
         }
     }
 
-    // Check for compilation database (optional but recommended for full IntelliSense)
+    // Check for compilation database (optional but recommended)
     if !crate::detection::check_compilation_database(worktree) {
         if auto_generate_compile_db {
             warnings.push(
@@ -243,7 +167,7 @@ pub fn check_dependencies(worktree: &zed::Worktree) -> (Vec<String>, Vec<String>
         }
     }
 
-    // Check for FQBN in settings (critical)
+    // Check for FQBN configuration (critical)
     let mut fqbn_configured = false;
     if let Ok(lsp_settings) =
         zed_extension_api::settings::LspSettings::for_worktree("arduino", worktree)
@@ -268,7 +192,7 @@ pub fn check_dependencies(worktree: &zed::Worktree) -> (Vec<String>, Vec<String>
     (errors, warnings)
 }
 
-/// Print dependency check results to stderr in a user-friendly format
+/// Print dependency check results to stderr
 pub fn report_dependencies(worktree: &zed::Worktree) {
     let (errors, warnings) = check_dependencies(worktree);
 
@@ -288,5 +212,95 @@ pub fn report_dependencies(worktree: &zed::Worktree) {
 
     if errors.is_empty() && warnings.is_empty() {
         eprintln!("✅ Arduino Extension - All dependencies configured");
+    }
+}
+
+// ============================================================================
+// Error Formatting
+// ============================================================================
+
+/// Format a dependency error with tool name, reason, and recovery steps
+pub fn format_dependency_error(
+    tool_name: &str,
+    error: &str,
+    auto_download_enabled: bool,
+) -> String {
+    let header = format!(
+        "Arduino Extension Error: Failed to obtain {}\n  Reason: {}\n\nRecovery Options:\n",
+        tool_name, error
+    );
+
+    let recovery_steps = match tool_name {
+        "arduino-cli" => get_arduino_cli_recovery_steps(auto_download_enabled),
+        "clangd" => get_clangd_recovery_steps(),
+        "arduino-language-server" => get_language_server_recovery_steps(auto_download_enabled),
+        _ => vec![
+            "1. Check the extension logs for more details",
+            "2. Restart Zed and try again",
+        ],
+    };
+
+    let footer = "\nFor more help, see: https://github.com/itzderock/zed-arduino#troubleshooting\n";
+
+    format!(
+        "{}{}{}",
+        header,
+        recovery_steps
+            .iter()
+            .map(|s| format!("  {}\n", s))
+            .collect::<String>(),
+        footer
+    )
+}
+
+fn get_arduino_cli_recovery_steps(auto_download_enabled: bool) -> Vec<&'static str> {
+    if auto_download_enabled {
+        vec![
+            "1. Check your internet connection and restart Zed",
+            "2. Install manually: https://arduino.github.io/arduino-cli/installation/",
+            "   - macOS: brew install arduino-cli",
+            "   - Linux: curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh",
+            "   - Windows: Download from https://github.com/arduino/arduino-cli/releases",
+            "3. Disable auto-download and specify path in settings:",
+            "   \"autoDownloadCli\": false,",
+            "   \"binary\": { \"path\": \"/path/to/arduino-cli\" }",
+        ]
+    } else {
+        vec![
+            "1. Install arduino-cli: https://arduino.github.io/arduino-cli/installation/",
+            "   - macOS: brew install arduino-cli",
+            "   - Linux: curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh",
+            "   - Windows: Download from https://github.com/arduino/arduino-cli/releases",
+            "2. Ensure arduino-cli is in your PATH",
+            "3. Or enable auto-download in settings: \"autoDownloadCli\": true",
+        ]
+    }
+}
+
+fn get_clangd_recovery_steps() -> Vec<&'static str> {
+    vec![
+        "1. Open any C++ file in Zed to trigger automatic clangd installation",
+        "2. Install manually:",
+        "   - macOS: brew install llvm",
+        "   - Linux: apt install clangd (or equivalent for your distro)",
+        "   - Windows: Download from https://github.com/clangd/clangd/releases",
+        "3. IntelliSense will be limited without clangd, but basic features will work",
+    ]
+}
+
+fn get_language_server_recovery_steps(auto_download_enabled: bool) -> Vec<&'static str> {
+    if auto_download_enabled {
+        vec![
+            "1. Check your internet connection and restart Zed",
+            "2. Check GitHub API rate limits: https://api.github.com/rate_limit",
+            "3. Try using a custom fork in settings:",
+            "   \"githubRepo\": \"arduino/arduino-language-server\"",
+        ]
+    } else {
+        vec![
+            "1. Download from: https://github.com/arduino/arduino-language-server/releases",
+            "2. Specify path in settings:",
+            "   \"binary\": { \"path\": \"/path/to/arduino-language-server\" }",
+        ]
     }
 }

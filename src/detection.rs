@@ -1,5 +1,11 @@
+//! Detects clangd binary, arduino-cli config, and compilation database locations.
+
 use std::fs;
 use zed_extension_api::{self as zed};
+
+// ============================================================================
+// Public Detection Functions
+// ============================================================================
 
 /// Find clangd in PATH or Zed-managed locations (Flatpak, standard, macOS)
 pub fn find_clangd(worktree: &zed::Worktree) -> Option<String> {
@@ -42,21 +48,6 @@ pub fn find_clangd(worktree: &zed::Worktree) -> Option<String> {
     None
 }
 
-/// Search for clangd in versioned Zed directories (e.g., clangd_22.1.0/bin/clangd)
-fn search_clangd_in_directory(base_path: &str) -> Option<String> {
-    if let Ok(entries) = fs::read_dir(base_path) {
-        for entry in entries.flatten() {
-            let clangd_path = entry.path().join("bin/clangd");
-            if clangd_path.exists() {
-                if let Some(path_str) = clangd_path.to_str() {
-                    return Some(path_str.to_string());
-                }
-            }
-        }
-    }
-    None
-}
-
 /// Find arduino-cli config in project root or user home directory
 pub fn find_arduino_cli_config(worktree: &zed::Worktree) -> Option<String> {
     let worktree_root = worktree.root_path();
@@ -95,4 +86,23 @@ pub fn check_compilation_database(worktree: &zed::Worktree) -> bool {
     let worktree_root = worktree.root_path();
     let compile_db_path = format!("{}/compile_commands.json", worktree_root);
     fs::metadata(&compile_db_path).is_ok()
+}
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+/// Search for clangd in versioned Zed directories (e.g., clangd_22.1.0/bin/clangd)
+fn search_clangd_in_directory(base_path: &str) -> Option<String> {
+    if let Ok(entries) = fs::read_dir(base_path) {
+        for entry in entries.flatten() {
+            let clangd_path = entry.path().join("bin/clangd");
+            if clangd_path.exists() {
+                if let Some(path_str) = clangd_path.to_str() {
+                    return Some(path_str.to_string());
+                }
+            }
+        }
+    }
+    None
 }

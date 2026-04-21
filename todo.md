@@ -9,4 +9,5 @@ If a task is completed, remove it from the list.
 - Possibility to work on .cpp and .h if a .ino or .pde is present?
 - Remove unnecessary options from settings file generation (tab size, etc.)
 - Examine setting defaults? Config should probably be true?
+- Reexamine all arduino / esp platform support.
 - Check if unimplemented LS features will crash the extension.

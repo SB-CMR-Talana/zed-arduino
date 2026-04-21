@@ -1,10 +1,10 @@
 id = "arduino"
 name = "Arduino Language Support"
-version = "0.0.1"
+version = "0.0.2"
 schema_version = 1
-authors = ["Derock Xie <derock@derock.dev>"]
-description = "Adds support for the Arduino language server."
-repository = "https://github.com/itzderock/zed-arduino"
+authors = ["Derock Xie <derock@derock.dev>", "Talana <s.j.kusters@proton.me>"]
+description = "Complete Arduino development with auto-setup, IntelliSense, board auto-detection, 23 tasks, and 141 snippets."
+repository = "https://github.com/SB-CMR-Talana/zed-arduino"
 snippets = ["languages/arduino/snippets.json"]
 
 [language_servers.arduino-language-server]

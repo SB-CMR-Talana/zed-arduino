@@ -1,3 +1,5 @@
+//! Auto-generates Arduino project configuration files and manages arduino-cli isolated setup.
+
 use std::fs;
 use std::path::Path;
 use zed_extension_api::{self as zed, Result};
@@ -5,35 +7,9 @@ use zed_extension_api::{self as zed, Result};
 use crate::metadata::InstallationState;
 use crate::utils::get_setting;
 
-fn get_extension_readme_path() -> String {
-    std::env::current_dir()
-        .ok()
-        .and_then(|p| p.join("README.md").to_str().map(String::from))
-        .unwrap_or_else(|| {
-            let (platform, _) = zed::current_platform();
-            match platform {
-                zed::Os::Linux => "~/.local/share/zed/extensions/arduino/README.md".to_string(),
-                zed::Os::Mac => {
-                    "~/Library/Application Support/Zed/extensions/arduino/README.md".to_string()
-                }
-                zed::Os::Windows => "%APPDATA%\\Zed\\extensions\\arduino\\README.md".to_string(),
-            }
-        })
-}
-
-fn get_default_board_settings(worktree: &zed::Worktree) -> (String, String) {
-    const DEFAULT_FQBN: &str = "REPLACE_WITH_YOUR_BOARD_FQBN";
-    const DEFAULT_PORT: &str = "REPLACE_WITH_YOUR_PORT";
-
-    worktree
-        .which("arduino-cli")
-        .and_then(|cli_path| crate::cli::detect_connected_board(&cli_path))
-        .map(|(port, fqbn)| {
-            eprintln!("Arduino: Detected board {} on port {}", fqbn, port);
-            (fqbn, port)
-        })
-        .unwrap_or_else(|| (DEFAULT_FQBN.to_string(), DEFAULT_PORT.to_string()))
-}
+// ============================================================================
+// Public Auto-Generation Functions
+// ============================================================================
 
 /// Auto-generate .zed/settings.json with default Arduino configuration
 pub fn auto_generate_project_settings(worktree: &zed::Worktree) -> Result<()> {
@@ -137,7 +113,6 @@ pub fn auto_generate_tasks(worktree: &zed::Worktree, state: &InstallationState) 
     let readme_path = get_extension_readme_path();
 
     // Default tasks template
-    // Note: Tasks extract FQBN from .zed/settings.json automatically
     let default_tasks = format!(
         r#"{{
   // For documentation and customization options, see the extension README:
@@ -350,4 +325,38 @@ updater:
     );
 
     Ok(())
+}
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+fn get_extension_readme_path() -> String {
+    std::env::current_dir()
+        .ok()
+        .and_then(|p| p.join("README.md").to_str().map(String::from))
+        .unwrap_or_else(|| {
+            let (platform, _) = zed::current_platform();
+            match platform {
+                zed::Os::Linux => "~/.local/share/zed/extensions/arduino/README.md".to_string(),
+                zed::Os::Mac => {
+                    "~/Library/Application Support/Zed/extensions/arduino/README.md".to_string()
+                }
+                zed::Os::Windows => "%APPDATA%\\Zed\\extensions\\arduino\\README.md".to_string(),
+            }
+        })
+}
+
+fn get_default_board_settings(worktree: &zed::Worktree) -> (String, String) {
+    const DEFAULT_FQBN: &str = "REPLACE_WITH_YOUR_BOARD_FQBN";
+    const DEFAULT_PORT: &str = "REPLACE_WITH_YOUR_PORT";
+
+    worktree
+        .which("arduino-cli")
+        .and_then(|cli_path| crate::cli::detect_connected_board(&cli_path))
+        .map(|(port, fqbn)| {
+            eprintln!("Arduino: Detected board {} on port {}", fqbn, port);
+            (fqbn, port)
+        })
+        .unwrap_or_else(|| (DEFAULT_FQBN.to_string(), DEFAULT_PORT.to_string()))
 }

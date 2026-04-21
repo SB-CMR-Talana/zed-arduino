@@ -1,3 +1,5 @@
+//! Tracks installation state and metadata for downloaded and detected tools.
+
 use std::fs;
 use zed_extension_api::{serde_json, Result};
 
@@ -26,13 +28,17 @@ pub struct ToolMetadata {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ToolSource {
-    Downloaded, // We downloaded it
-    Path,       // Found in PATH
-    ZedManaged, // Managed by Zed
-    Manual,     // User specified path
+    Downloaded,
+    Path,
+    ZedManaged,
+    Manual,
 }
 
 impl InstallationState {
+    // ============================================================================
+    // Load/Save
+    // ============================================================================
+
     /// Load installation state from disk
     pub fn load() -> Self {
         let state_file = "installation_state.json";
@@ -60,7 +66,16 @@ impl InstallationState {
         Ok(())
     }
 
-    /// Check if arduino-cli was downloaded by the extension
+    // ============================================================================
+    // Getters/Queries
+    // ============================================================================
+
+    /// Get the detected platform
+    pub fn get_platform(&self) -> Option<&Platform> {
+        self.platform.as_ref()
+    }
+
+    /// Check if arduino-cli was downloaded by extension
     pub fn arduino_cli_installed_by_extension(&self) -> bool {
         self.arduino_cli
             .as_ref()
@@ -68,7 +83,7 @@ impl InstallationState {
             .unwrap_or(false)
     }
 
-    /// Check if arduino-cli should use isolated data directory
+    /// Check if arduino-cli uses isolated data directory
     pub fn arduino_cli_uses_isolated_data(&self) -> bool {
         self.arduino_cli
             .as_ref()
@@ -85,12 +100,10 @@ impl InstallationState {
         }
     }
 
-    /// Get the detected platform
-    pub fn get_platform(&self) -> Option<&Platform> {
-        self.platform.as_ref()
-    }
+    // ============================================================================
+    // Mutators
+    // ============================================================================
 
-    /// Record the platform
     pub fn record_platform(&mut self, platform: Platform) {
         self.platform = Some(platform);
     }
@@ -149,7 +162,10 @@ impl InstallationState {
         });
     }
 
-    /// Convert to JSON
+    // ============================================================================
+    // JSON Serialization
+    // ============================================================================
+
     fn to_json(&self) -> serde_json::Value {
         let mut obj = serde_json::json!({});
 
@@ -177,7 +193,6 @@ impl InstallationState {
         obj
     }
 
-    /// Parse from JSON
     fn from_json(json: &serde_json::Value) -> Self {
         let platform = json
             .get("platform")
