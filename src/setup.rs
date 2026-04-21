@@ -41,13 +41,27 @@ pub fn auto_generate_project_settings(worktree: &zed::Worktree) -> Result<()> {
         )
     };
 
+    // Get actual extension installation path
+    let readme_path = std::env::current_dir()
+        .ok()
+        .and_then(|p| p.join("README.md").to_str().map(String::from))
+        .unwrap_or_else(|| {
+            // Fallback to OS-specific default path
+            let (platform, _) = zed::current_platform();
+            match platform {
+                zed::Os::Linux => "~/.local/share/zed/extensions/arduino/README.md".to_string(),
+                zed::Os::Mac => {
+                    "~/Library/Application Support/Zed/extensions/arduino/README.md".to_string()
+                }
+                zed::Os::Windows => "%APPDATA%\\Zed\\extensions\\arduino\\README.md".to_string(),
+            }
+        });
+
     // Generate settings with detected or default values
     let default_settings = format!(
         r#"{{
   // For documentation and all configuration options, see the extension README:
-  //   Linux: ~/.local/share/zed/extensions/arduino/README.md
-  //   macOS: ~/Library/Application Support/Zed/extensions/arduino/README.md
-  //   Windows: %APPDATA%\Zed\extensions\arduino\README.md
+  //   {}
   // Or online: https://github.com/itzderock/zed-arduino/blob/main/README.md
   "lsp": {{
     "arduino": {{
@@ -76,7 +90,7 @@ pub fn auto_generate_project_settings(worktree: &zed::Worktree) -> Result<()> {
   }}
 }}
 "#,
-        default_fqbn, default_port
+        readme_path, default_fqbn, default_port
     );
 
     fs::write(&settings_file, default_settings)
@@ -104,48 +118,65 @@ pub fn auto_generate_tasks(worktree: &zed::Worktree) -> Result<()> {
     // Create .zed directory if it doesn't exist
     fs::create_dir_all(&zed_dir).map_err(|e| format!("failed to create .zed directory: {}", e))?;
 
+    // Get actual extension installation path
+    let readme_path = std::env::current_dir()
+        .ok()
+        .and_then(|p| p.join("README.md").to_str().map(String::from))
+        .unwrap_or_else(|| {
+            // Fallback to OS-specific default path
+            let (platform, _) = zed::current_platform();
+            match platform {
+                zed::Os::Linux => "~/.local/share/zed/extensions/arduino/README.md".to_string(),
+                zed::Os::Mac => {
+                    "~/Library/Application Support/Zed/extensions/arduino/README.md".to_string()
+                }
+                zed::Os::Windows => "%APPDATA%\\Zed\\extensions\\arduino\\README.md".to_string(),
+            }
+        });
+
     // Default tasks template
     // Note: Tasks extract FQBN from .zed/settings.json automatically
-    let default_tasks = r#"{
+    let default_tasks = format!(
+        r#"{{
   // For documentation and customization options, see the extension README:
-  //   Linux: ~/.local/share/zed/extensions/arduino/README.md
-  //   macOS: ~/Library/Application Support/Zed/extensions/arduino/README.md
-  //   Windows: %APPDATA%\Zed\extensions\arduino\README.md
+  // {}
   // Or online: https://github.com/SB-CMR-Talana/zed-arduino
   "tasks": [
-    {
+    {{
       "label": "Arduino: List Boards & Ports",
       "command": "arduino-cli board list",
       "use_new_terminal": true
-    },
-    {
+    }},
+    {{
       "label": "Arduino: Compile",
       "command": "FQBN=$(grep -A 1 '\"-fqbn\"' .zed/settings.json | tail -1 | grep -o '\"[^\"]*\"' | tr -d '\"') && arduino-cli compile -b \"$FQBN\" .",
       "use_new_terminal": true
-    },
-    {
+    }},
+    {{
       "label": "Arduino: Upload",
       "command": "FQBN=$(grep -A 1 '\"-fqbn\"' .zed/settings.json | tail -1 | grep -o '\"[^\"]*\"' | tr -d '\"') && PORT=$(grep '\"port\"' .zed/settings.json | grep -o '\"[^\"]*\"' | tail -1 | tr -d '\"') && arduino-cli upload -p \"$PORT\" -b \"$FQBN\" .",
       "use_new_terminal": true
-    },
-    {
+    }},
+    {{
       "label": "Arduino: Compile & Upload",
       "command": "FQBN=$(grep -A 1 '\"-fqbn\"' .zed/settings.json | tail -1 | grep -o '\"[^\"]*\"' | tr -d '\"') && PORT=$(grep '\"port\"' .zed/settings.json | grep -o '\"[^\"]*\"' | tail -1 | tr -d '\"') && arduino-cli compile -b \"$FQBN\" . && arduino-cli upload -p \"$PORT\" -b \"$FQBN\" .",
       "use_new_terminal": true
-    },
-    {
+    }},
+    {{
       "label": "Arduino: Monitor Serial",
       "command": "PORT=$(grep '\"port\"' .zed/settings.json | grep -o '\"[^\"]*\"' | tail -1 | tr -d '\"') && arduino-cli monitor -p \"$PORT\"",
       "use_new_terminal": true
-    },
-    {
+    }},
+    {{
       "label": "Arduino: Clean Build",
       "command": "rm -rf build",
       "use_new_terminal": false
-    }
+    }}
   ]
-}
-"#;
+}}
+"#,
+        readme_path
+    );
 
     fs::write(&tasks_file, default_tasks)
         .map_err(|e| format!("failed to write .zed/tasks.json: {}", e))?;
