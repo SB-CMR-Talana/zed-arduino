@@ -5,6 +5,7 @@ schema_version = 1
 authors = ["Derock Xie <derock@derock.dev>"]
 description = "Adds support for the Arduino language server."
 repository = "https://github.com/itzderock/zed-arduino"
+snippets = ["languages/arduino/snippets.json"]
 
 [language_servers.arduino-language-server]
 name = "Arduino Language Server"

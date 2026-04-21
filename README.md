@@ -5,7 +5,7 @@ Full Arduino development support in Zed with IntelliSense, diagnostics, and synt
 ## Features
 
 - 🎨 Syntax highlighting for Arduino sketches
-- 📝 Code snippets for common Arduino patterns (setup, loop, Serial, etc.)
+- 📝 Code snippets for common Arduino patterns and platform-specific features (ESP32, ESP8266, AVR)
 - 🧠 Code completion, hover info, and go-to-definition
 - 🔍 Real-time diagnostics and error checking
 - 🔧 Auto-downloads Arduino Language Server and arduino-cli
@@ -315,76 +315,36 @@ Then regenerate compilation database (see above).
 
 ## Code Snippets
 
-The extension includes 40+ code snippets for common Arduino patterns. Just start typing a prefix and press Tab to expand.
+The extension includes 130+ insertable code snippets. Just start typing and use autocomplete to discover them.
 
-### Main Structure
-- `asl` - Complete sketch template with setup() and loop()
-- `asetup` - setup() function
-- `aloop` - loop() function
+### Categories
 
-### Serial Communication
-- `asbeg` - Serial.begin(9600)
-- `aspr` - Serial.print()
-- `asprl` - Serial.println()
-- `asprlbl` - Print with label (e.g., "Value: 123")
-- `asav` - Check if Serial.available()
-- `asrd` - Serial.read()
+**Core Arduino:** `sketch`, `setup`, `loop`, `serial`, `digital`, `analog`, `delay`, `millis`, etc.
 
-### Digital I/O
-- `adw` - digitalWrite(pin, HIGH)
-- `adr` - digitalRead(pin)
-- `apm` - pinMode(pin, OUTPUT)
+**Platform-Specific:** Type platform name to discover snippets
+- `esp32*` - WiFi, BLE, SPIFFS, deep sleep, web server, tasks
+- `esp8266*` - WiFi, web server, OTA, LittleFS, deep sleep
+- `avr*` - EEPROM, sleep modes, watchdog, timers
+- `rp2040*` - Dual-core, PIO, flash, temperature sensor
+- `samd*` - RTC, low power modes
+- `teensy*` - Audio, USB device emulation
+- `stm32*` - Hardware timers, DMA, low power
 
-### Analog I/O
-- `aaw` - analogWrite(pin, value)
-- `aar` - analogRead(pin)
+**Sensors & Displays:** `oled`, `lcd`, `tft`, `mpu6050`, `dht`, `bme280`, `ultrasonic`, `gps`, etc.
 
-### Timing
-- `adel` - delay(milliseconds)
-- `adelus` - delayMicroseconds()
-- `amillis` - millis()
-- `amicros` - micros()
-- `ablink` - Non-blocking blink pattern using millis()
+**Motors:** `stepper`, `accelstepper`, `dcmotor`, `servo`
 
-### Control Flow
-- `afor` - for loop
-- `awhile` - while loop
-- `aif` - if statement
-- `aifelse` - if-else statement
+**Networking:** `mqtt`, `httpget`, `httppost`, `websocket`, `json`
 
-### Math & Random
-- `amap` - map(value, fromLow, fromHigh, toLow, toHigh)
-- `aconst` - constrain(value, min, max)
-- `arand` - random(min, max)
-- `arandseed` - randomSeed(analogRead(0))
+**Storage:** `sdread`, `sdwrite`, `csvlog`
 
-### Interrupts
-- `aint` - attachInterrupt()
-- `adint` - detachInterrupt()
-- `aisr` - Interrupt Service Routine function
+**LEDs:** `neopixel`, `fastled` with rainbow effects
 
-### Sound
-- `atone` - tone(pin, frequency)
-- `atoned` - tone(pin, frequency, duration)
-- `anotone` - noTone(pin)
+**Patterns:** `statemachine`, `debounce`, `pid`, `movingavg`, `ringbuffer`, `nonblocking`, `ema`, `median`
 
-### Advanced I/O
-- `apulse` - pulseIn(pin, HIGH)
-- `ashiftout` - shiftOut()
-- `ashiftin` - shiftIn()
+**Communication:** `i2c`, `spi`, `softserial`
 
-### Libraries
-- `ainc` - #include <Library.h>
-- `adef` - #define constant
-- `aconst` - const variable declaration
-- `afunc` - function declaration
-- `awbeg` - Wire.begin() (I2C)
-- `aspibeg` - SPI.begin()
-- `aservo` - Servo control
-- `alcdbeg` - LCD initialization
-- `alcdpr` - LCD print
-
-**Tip:** All snippets start with `a` (for Arduino) to avoid conflicts with other language snippets. Most snippets include helpful placeholders that you can tab through to fill in.
+All snippets include helpful placeholders you can tab through to customize.
 
 ## Troubleshooting
 

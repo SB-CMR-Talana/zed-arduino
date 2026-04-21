@@ -1,6 +1,6 @@
 {
   "Arduino Sketch Template": {
-    "prefix": "asl",
+    "prefix": "sketch",
     "body": [
       "void setup() {",
       "\t${1:// put your setup code here, to run once:}",
@@ -13,133 +13,92 @@
     "description": "Main Arduino sketch template with setup() and loop()"
   },
   "Setup Function": {
-    "prefix": "asetup",
-    "body": [
-      "void setup() {",
-      "\t${0}",
-      "}"
-    ],
+    "prefix": "setup",
+    "body": ["void setup() {", "\t${0}", "}"],
     "description": "Arduino setup() function"
   },
   "Loop Function": {
-    "prefix": "aloop",
-    "body": [
-      "void loop() {",
-      "\t${0}",
-      "}"
-    ],
+    "prefix": "loop",
+    "body": ["void loop() {", "\t${0}", "}"],
     "description": "Arduino loop() function"
   },
   "Serial Begin": {
-    "prefix": "asbeg",
-    "body": [
-      "Serial.begin(${1:9600});"
-    ],
+    "prefix": "serialbegin",
+    "body": ["Serial.begin(${1:9600});"],
     "description": "Initialize Serial communication"
   },
   "Serial Print": {
-    "prefix": "aspr",
-    "body": [
-      "Serial.print(${0});"
-    ],
+    "prefix": "serial",
+    "body": ["Serial.print(${0});"],
     "description": "Print to Serial without newline"
   },
   "Serial Println": {
-    "prefix": "asprl",
-    "body": [
-      "Serial.println(${0});"
-    ],
+    "prefix": "serialln",
+    "body": ["Serial.println(${0});"],
     "description": "Print to Serial with newline"
   },
   "Serial Print with Label": {
-    "prefix": "asprlbl",
-    "body": [
-      "Serial.print(\"${1:label}: \");",
-      "Serial.println(${2:value});"
-    ],
+    "prefix": "seriallabel",
+    "body": ["Serial.print(\"${1:label}: \");", "Serial.println(${2:value});"],
     "description": "Print labeled value to Serial"
   },
   "Serial Available": {
-    "prefix": "asav",
-    "body": [
-      "if (Serial.available() > 0) {",
-      "\t${0}",
-      "}"
-    ],
+    "prefix": "serialavail",
+    "body": ["if (Serial.available() > 0) {", "\t${0}", "}"],
     "description": "Check if Serial data is available"
   },
   "Serial Read": {
-    "prefix": "asrd",
-    "body": [
-      "Serial.read()"
-    ],
+    "prefix": "serialread",
+    "body": ["Serial.read()"],
     "description": "Read from Serial"
   },
   "Digital Write": {
-    "prefix": "adw",
-    "body": [
-      "digitalWrite(${1:pin}, ${2:HIGH});"
-    ],
+    "prefix": "digitalwrite",
+    "body": ["digitalWrite(${1:pin}, ${2:HIGH});"],
     "description": "Write digital value to pin"
   },
   "Digital Read": {
-    "prefix": "adr",
-    "body": [
-      "digitalRead(${1:pin})"
-    ],
+    "prefix": "digitalread",
+    "body": ["digitalRead(${1:pin})"],
     "description": "Read digital value from pin"
   },
   "Analog Write": {
-    "prefix": "aaw",
-    "body": [
-      "analogWrite(${1:pin}, ${2:value});"
-    ],
+    "prefix": "analogwrite",
+    "body": ["analogWrite(${1:pin}, ${2:value});"],
     "description": "Write PWM value to pin"
   },
   "Analog Read": {
-    "prefix": "aar",
-    "body": [
-      "analogRead(${1:pin})"
-    ],
+    "prefix": "analogread",
+    "body": ["analogRead(${1:pin})"],
     "description": "Read analog value from pin"
   },
   "Pin Mode": {
-    "prefix": "apm",
-    "body": [
-      "pinMode(${1:pin}, ${2|OUTPUT,INPUT,INPUT_PULLUP|});"
-    ],
+    "prefix": "pinmode",
+    "body": ["pinMode(${1:pin}, ${2|OUTPUT,INPUT,INPUT_PULLUP|});"],
     "description": "Set pin mode"
   },
   "Delay": {
-    "prefix": "adel",
-    "body": [
-      "delay(${1:1000});"
-    ],
+    "prefix": "delay",
+    "body": ["delay(${1:1000});"],
     "description": "Delay in milliseconds"
   },
   "Delay Microseconds": {
-    "prefix": "adelus",
-    "body": [
-      "delayMicroseconds(${1:1000});"
-    ],
+    "prefix": "delayus",
+    "body": ["delayMicroseconds(${1:1000});"],
     "description": "Delay in microseconds"
   },
   "Millis": {
-    "prefix": "amillis",
-    "body": [
-      "millis()"
-    ],
+    "prefix": "millis",
+    "body": ["millis()"],
     "description": "Get milliseconds since program start"
   },
   "Micros": {
-    "prefix": "amicros",
-    "body": [
-      "micros()"
-    ],
+    "prefix": "micros",
+    "body": ["micros()"],
     "description": "Get microseconds since program start"
   },
   "Blink Without Delay": {
-    "prefix": "ablink",
+    "prefix": "blink",
     "body": [
       "unsigned long previousMillis = 0;",
       "const long interval = ${1:1000};",
@@ -156,7 +115,7 @@
     "description": "Non-blocking blink pattern using millis()"
   },
   "For Loop": {
-    "prefix": "afor",
+    "prefix": "for",
     "body": [
       "for (int ${1:i} = 0; ${1:i} < ${2:count}; ${1:i}++) {",
       "\t${0}",
@@ -165,218 +124,1486 @@
     "description": "For loop"
   },
   "While Loop": {
-    "prefix": "awhile",
-    "body": [
-      "while (${1:condition}) {",
-      "\t${0}",
-      "}"
-    ],
+    "prefix": "while",
+    "body": ["while (${1:condition}) {", "\t${0}", "}"],
     "description": "While loop"
   },
   "If Statement": {
-    "prefix": "aif",
-    "body": [
-      "if (${1:condition}) {",
-      "\t${0}",
-      "}"
-    ],
+    "prefix": "if",
+    "body": ["if (${1:condition}) {", "\t${0}", "}"],
     "description": "If statement"
   },
   "If-Else Statement": {
-    "prefix": "aifelse",
-    "body": [
-      "if (${1:condition}) {",
-      "\t${2}",
-      "} else {",
-      "\t${0}",
-      "}"
-    ],
+    "prefix": "ifelse",
+    "body": ["if (${1:condition}) {", "\t${2}", "} else {", "\t${0}", "}"],
     "description": "If-else statement"
   },
   "Map Function": {
-    "prefix": "amap",
+    "prefix": "map",
     "body": [
       "map(${1:value}, ${2:fromLow}, ${3:fromHigh}, ${4:toLow}, ${5:toHigh})"
     ],
     "description": "Re-map a number from one range to another"
   },
   "Constrain Function": {
-    "prefix": "aconst",
-    "body": [
-      "constrain(${1:value}, ${2:min}, ${3:max})"
-    ],
+    "prefix": "constrain",
+    "body": ["constrain(${1:value}, ${2:min}, ${3:max})"],
     "description": "Constrain a value between min and max"
   },
   "Random": {
-    "prefix": "arand",
-    "body": [
-      "random(${1:min}, ${2:max})"
-    ],
+    "prefix": "random",
+    "body": ["random(${1:min}, ${2:max})"],
     "description": "Generate random number"
   },
   "Random Seed": {
-    "prefix": "arandseed",
-    "body": [
-      "randomSeed(analogRead(${1:0}));"
-    ],
+    "prefix": "randomseed",
+    "body": ["randomSeed(analogRead(${1:0}));"],
     "description": "Initialize random seed from analog pin"
   },
   "Attach Interrupt": {
-    "prefix": "aint",
+    "prefix": "attachint",
     "body": [
       "attachInterrupt(digitalPinToInterrupt(${1:pin}), ${2:ISR}, ${3|RISING,FALLING,CHANGE,LOW|});"
     ],
     "description": "Attach interrupt to pin"
   },
   "Detach Interrupt": {
-    "prefix": "adint",
-    "body": [
-      "detachInterrupt(digitalPinToInterrupt(${1:pin}));"
-    ],
+    "prefix": "detachint",
+    "body": ["detachInterrupt(digitalPinToInterrupt(${1:pin}));"],
     "description": "Detach interrupt from pin"
   },
   "ISR Function": {
-    "prefix": "aisr",
-    "body": [
-      "void ${1:myISR}() {",
-      "\t${0}",
-      "}"
-    ],
+    "prefix": "isr",
+    "body": ["void ${1:myISR}() {", "\t${0}", "}"],
     "description": "Interrupt Service Routine function"
   },
   "Tone": {
-    "prefix": "atone",
-    "body": [
-      "tone(${1:pin}, ${2:frequency});"
-    ],
+    "prefix": "tone",
+    "body": ["tone(${1:pin}, ${2:frequency});"],
     "description": "Generate tone on pin"
   },
   "Tone with Duration": {
-    "prefix": "atoned",
-    "body": [
-      "tone(${1:pin}, ${2:frequency}, ${3:duration});"
-    ],
+    "prefix": "tonedur",
+    "body": ["tone(${1:pin}, ${2:frequency}, ${3:duration});"],
     "description": "Generate tone on pin with duration"
   },
   "No Tone": {
-    "prefix": "anotone",
-    "body": [
-      "noTone(${1:pin});"
-    ],
+    "prefix": "notone",
+    "body": ["noTone(${1:pin});"],
     "description": "Stop tone on pin"
   },
   "Pulse In": {
-    "prefix": "apulse",
-    "body": [
-      "pulseIn(${1:pin}, ${2|HIGH,LOW|});"
-    ],
+    "prefix": "pulsein",
+    "body": ["pulseIn(${1:pin}, ${2|HIGH,LOW|});"],
     "description": "Read pulse duration on pin"
   },
   "Shift Out": {
-    "prefix": "ashiftout",
+    "prefix": "shiftout",
     "body": [
       "shiftOut(${1:dataPin}, ${2:clockPin}, ${3|MSBFIRST,LSBFIRST|}, ${4:value});"
     ],
     "description": "Shift out data to pin"
   },
   "Shift In": {
-    "prefix": "ashiftin",
-    "body": [
-      "shiftIn(${1:dataPin}, ${2:clockPin}, ${3|MSBFIRST,LSBFIRST|});"
-    ],
+    "prefix": "shiftin",
+    "body": ["shiftIn(${1:dataPin}, ${2:clockPin}, ${3|MSBFIRST,LSBFIRST|});"],
     "description": "Shift in data from pin"
   },
   "Include Library": {
-    "prefix": "ainc",
-    "body": [
-      "#include <${1:Library}.h>"
-    ],
+    "prefix": "include",
+    "body": ["#include <${1:Library}.h>"],
     "description": "Include library header"
   },
   "Define Constant": {
-    "prefix": "adef",
-    "body": [
-      "#define ${1:NAME} ${2:value}"
-    ],
+    "prefix": "define",
+    "body": ["#define ${1:NAME} ${2:value}"],
     "description": "Define preprocessor constant"
   },
   "Const Variable": {
-    "prefix": "aconst",
-    "body": [
-      "const ${1:int} ${2:name} = ${3:value};"
-    ],
+    "prefix": "const",
+    "body": ["const ${1:int} ${2:name} = ${3:value};"],
     "description": "Declare constant variable"
   },
   "Function": {
-    "prefix": "afunc",
-    "body": [
-      "${1:void} ${2:functionName}(${3:parameters}) {",
-      "\t${0}",
-      "}"
-    ],
+    "prefix": "function",
+    "body": ["${1:void} ${2:functionName}(${3:parameters}) {", "\t${0}", "}"],
     "description": "Function declaration"
   },
   "Wire Begin": {
-    "prefix": "awbeg",
-    "body": [
-      "Wire.begin();"
-    ],
+    "prefix": "wirebegin",
+    "body": ["Wire.begin();"],
     "description": "Initialize I2C (Wire library)"
   },
   "Wire Begin Address": {
-    "prefix": "awbega",
-    "body": [
-      "Wire.begin(${1:address});"
-    ],
+    "prefix": "wireaddr",
+    "body": ["Wire.begin(${1:address});"],
     "description": "Initialize I2C with address"
   },
   "SPI Begin": {
-    "prefix": "aspibeg",
-    "body": [
-      "SPI.begin();"
-    ],
+    "prefix": "spibegin",
+    "body": ["SPI.begin();"],
     "description": "Initialize SPI"
   },
   "Servo Write": {
-    "prefix": "aservo",
-    "body": [
-      "${1:myServo}.write(${2:angle});"
-    ],
+    "prefix": "servo",
+    "body": ["${1:myServo}.write(${2:angle});"],
     "description": "Write angle to servo"
   },
   "Servo Attach": {
-    "prefix": "aservoa",
-    "body": [
-      "${1:myServo}.attach(${2:pin});"
-    ],
+    "prefix": "servoattach",
+    "body": ["${1:myServo}.attach(${2:pin});"],
     "description": "Attach servo to pin"
   },
   "LCD Begin": {
-    "prefix": "alcdbeg",
-    "body": [
-      "${1:lcd}.begin(${2:16}, ${3:2});"
-    ],
+    "prefix": "lcdbegin",
+    "body": ["${1:lcd}.begin(${2:16}, ${3:2});"],
     "description": "Initialize LCD with columns and rows"
   },
   "LCD Print": {
-    "prefix": "alcdpr",
-    "body": [
-      "${1:lcd}.print(${2:text});"
-    ],
+    "prefix": "lcdprint",
+    "body": ["${1:lcd}.print(${2:text});"],
     "description": "Print to LCD"
   },
   "LCD Set Cursor": {
-    "prefix": "alcdcur",
-    "body": [
-      "${1:lcd}.setCursor(${2:col}, ${3:row});"
-    ],
+    "prefix": "lcdcursor",
+    "body": ["${1:lcd}.setCursor(${2:col}, ${3:row});"],
     "description": "Set LCD cursor position"
   },
   "LCD Clear": {
-    "prefix": "alcdclr",
-    "body": [
-      "${1:lcd}.clear();"
-    ],
+    "prefix": "lcdclear",
+    "body": ["${1:lcd}.clear();"],
     "description": "Clear LCD display"
+  },
+  "ESP32 WiFi Connect": {
+    "prefix": "esp32wifi",
+    "body": [
+      "WiFi.begin(${1:ssid}, ${2:password});",
+      "",
+      "while (WiFi.status() != WL_CONNECTED) {",
+      "\tdelay(500);",
+      "\tSerial.print(\".\");",
+      "}",
+      "",
+      "Serial.println(\"\");",
+      "Serial.println(\"WiFi connected\");",
+      "Serial.print(\"IP address: \");",
+      "Serial.println(WiFi.localIP());",
+      "${0}"
+    ],
+    "description": "ESP32 WiFi connection code"
+  },
+  "ESP32 WiFi AP Mode": {
+    "prefix": "esp32wifiap",
+    "body": [
+      "WiFi.softAP(${1:ssid}, ${2:password});",
+      "",
+      "IPAddress IP = WiFi.softAPIP();",
+      "Serial.print(\"AP IP address: \");",
+      "Serial.println(IP);",
+      "${0}"
+    ],
+    "description": "ESP32 WiFi Access Point code"
+  },
+  "ESP32 Web Server": {
+    "prefix": "esp32webserver",
+    "body": [
+      "WebServer server(${1:80});",
+      "",
+      "void handleRoot() {",
+      "\tserver.send(200, \"text/html\", \"${2:<h1>Hello from ESP32</h1>}\");",
+      "}",
+      "",
+      "// In setup():",
+      "server.on(\"/\", handleRoot);",
+      "server.begin();",
+      "Serial.println(\"HTTP server started\");",
+      "",
+      "// In loop():",
+      "server.handleClient();",
+      "${0}"
+    ],
+    "description": "ESP32 web server code"
+  },
+  "ESP32 Deep Sleep": {
+    "prefix": "esp32sleep",
+    "body": [
+      "esp_sleep_enable_timer_wakeup(${1:5} * 1000000ULL); // ${1:5} seconds",
+      "Serial.println(\"Going to sleep now\");",
+      "Serial.flush();",
+      "esp_deep_sleep_start();",
+      "${0}"
+    ],
+    "description": "ESP32 deep sleep with timer wakeup"
+  },
+  "ESP32 BLE Server": {
+    "prefix": "esp32ble",
+    "body": [
+      "BLEDevice::init(\"${1:ESP32-BLE}\");",
+      "BLEServer *pServer = BLEDevice::createServer();",
+      "BLEService *pService = pServer->createService(${2:SERVICE_UUID});",
+      "BLECharacteristic *pCharacteristic = pService->createCharacteristic(",
+      "\t${3:CHARACTERISTIC_UUID},",
+      "\tBLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE",
+      ");",
+      "",
+      "pCharacteristic->setValue(\"${4:Hello BLE}\");",
+      "pService->start();",
+      "",
+      "BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();",
+      "pAdvertising->addServiceUUID(${2:SERVICE_UUID});",
+      "pAdvertising->start();",
+      "Serial.println(\"BLE Server started\");",
+      "${0}"
+    ],
+    "description": "ESP32 BLE server initialization code"
+  },
+  "ESP32 SPIFFS": {
+    "prefix": "esp32spiffs",
+    "body": [
+      "if (!SPIFFS.begin(true)) {",
+      "\tSerial.println(\"SPIFFS Mount Failed\");",
+      "\treturn;",
+      "}",
+      "",
+      "File file = SPIFFS.open(\"${1:/test.txt}\", ${2:FILE_READ});",
+      "if (!file) {",
+      "\tSerial.println(\"Failed to open file\");",
+      "\treturn;",
+      "}",
+      "",
+      "while (file.available()) {",
+      "\tSerial.write(file.read());",
+      "}",
+      "file.close();",
+      "${0}"
+    ],
+    "description": "ESP32 SPIFFS file operations"
+  },
+  "ESP32 Preferences": {
+    "prefix": "esp32prefs",
+    "body": [
+      "preferences.begin(\"${1:my-app}\", false);",
+      "${2:int counter = preferences.getInt(\"counter\", 0);}",
+      "${3:preferences.putInt(\"counter\", counter + 1);}",
+      "preferences.end();",
+      "${0}"
+    ],
+    "description": "ESP32 Preferences (NVS) storage code"
+  },
+  "ESP32 Task": {
+    "prefix": "esp32task",
+    "body": [
+      "void ${1:Task}Code(void * parameter) {",
+      "\tfor(;;) {",
+      "\t\t${2:// Task code here}",
+      "\t\tvTaskDelay(${3:1000} / portTICK_PERIOD_MS);",
+      "\t}",
+      "}",
+      "",
+      "// In setup() or elsewhere:",
+      "xTaskCreatePinnedToCore(",
+      "\t${1:Task}Code,",
+      "\t\"${1:Task}\",",
+      "\t${4:10000},",
+      "\tNULL,",
+      "\t${5:1},",
+      "\t&${1:Task}Handle,",
+      "\t${6:0}",
+      ");",
+      "${0}"
+    ],
+    "description": "ESP32 FreeRTOS task creation"
+  },
+  "ESP8266 WiFi Connect": {
+    "prefix": "esp8266wifi",
+    "body": [
+      "WiFi.begin(${1:ssid}, ${2:password});",
+      "",
+      "while (WiFi.status() != WL_CONNECTED) {",
+      "\tdelay(500);",
+      "\tSerial.print(\".\");",
+      "}",
+      "",
+      "Serial.println(\"\");",
+      "Serial.println(\"WiFi connected\");",
+      "Serial.print(\"IP address: \");",
+      "Serial.println(WiFi.localIP());",
+      "${0}"
+    ],
+    "description": "ESP8266 WiFi connection code"
+  },
+  "ESP8266 Web Server": {
+    "prefix": "esp8266webserver",
+    "body": [
+      "ESP8266WebServer server(${1:80});",
+      "",
+      "void handleRoot() {",
+      "\tserver.send(200, \"text/html\", \"${2:<h1>Hello from ESP8266</h1>}\");",
+      "}",
+      "",
+      "// In setup():",
+      "server.on(\"/\", handleRoot);",
+      "server.begin();",
+      "Serial.println(\"HTTP server started\");",
+      "",
+      "// In loop():",
+      "server.handleClient();",
+      "${0}"
+    ],
+    "description": "ESP8266 web server code"
+  },
+  "ESP8266 Deep Sleep": {
+    "prefix": "esp8266sleep",
+    "body": [
+      "Serial.println(\"Going to sleep now\");",
+      "Serial.flush();",
+      "ESP.deepSleep(${1:5e6}); // Sleep for ${1:5} seconds (${1:5} * 10^6 microseconds)",
+      "${0}"
+    ],
+    "description": "ESP8266 deep sleep code"
+  },
+  "ESP8266 LittleFS": {
+    "prefix": "esp8266littlefs",
+    "body": [
+      "if (!LittleFS.begin()) {",
+      "\tSerial.println(\"LittleFS Mount Failed\");",
+      "\treturn;",
+      "}",
+      "",
+      "File file = LittleFS.open(\"${1:/test.txt}\", \"${2:r}\");",
+      "if (!file) {",
+      "\tSerial.println(\"Failed to open file\");",
+      "\treturn;",
+      "}",
+      "",
+      "while (file.available()) {",
+      "\tSerial.write(file.read());",
+      "}",
+      "file.close();",
+      "${0}"
+    ],
+    "description": "ESP8266 LittleFS file operations"
+  },
+  "ESP8266 OTA": {
+    "prefix": "esp8266ota",
+    "body": [
+      "ArduinoOTA.setHostname(\"${1:esp8266}\");",
+      "ArduinoOTA.setPassword(\"${2:admin}\");",
+      "",
+      "ArduinoOTA.onStart([]() {",
+      "\tSerial.println(\"Start updating\");",
+      "});",
+      "ArduinoOTA.onEnd([]() {",
+      "\tSerial.println(\"\\nEnd\");",
+      "});",
+      "ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {",
+      "\tSerial.printf(\"Progress: %u%%\\r\", (progress / (total / 100)));",
+      "});",
+      "ArduinoOTA.onError([](ota_error_t error) {",
+      "\tSerial.printf(\"Error[%u]: \", error);",
+      "});",
+      "",
+      "ArduinoOTA.begin();",
+      "Serial.println(\"OTA Ready\");",
+      "",
+      "// In loop():",
+      "ArduinoOTA.handle();",
+      "${0}"
+    ],
+    "description": "ESP8266 OTA (Over The Air) setup code"
+  },
+  "AVR EEPROM Write": {
+    "prefix": "avreeprom",
+    "body": ["EEPROM.write(${1:address}, ${2:value});", "${0}"],
+    "description": "AVR EEPROM write operation"
+  },
+  "AVR EEPROM Read": {
+    "prefix": "avreepromread",
+    "body": ["byte value = EEPROM.read(${1:address});", "${0}"],
+    "description": "AVR EEPROM read operation"
+  },
+  "AVR EEPROM Put/Get": {
+    "prefix": "avreepromput",
+    "body": [
+      "// Write",
+      "EEPROM.put(${1:address}, ${2:data});",
+      "",
+      "// Read",
+      "${3:float} readData;",
+      "EEPROM.get(${1:address}, readData);",
+      "${0}"
+    ],
+    "description": "AVR EEPROM put/get for any data type"
+  },
+  "AVR Sleep Mode": {
+    "prefix": "avrsleep",
+    "body": [
+      "set_sleep_mode(${1|SLEEP_MODE_IDLE,SLEEP_MODE_ADC,SLEEP_MODE_PWR_SAVE,SLEEP_MODE_STANDBY,SLEEP_MODE_PWR_DOWN|});",
+      "sleep_enable();",
+      "sleep_mode();",
+      "// Wakes up here after interrupt",
+      "${0}"
+    ],
+    "description": "AVR sleep mode code"
+  },
+  "AVR Watchdog Timer": {
+    "prefix": "avrwatchdog",
+    "body": [
+      "wdt_enable(${1|WDTO_15MS,WDTO_30MS,WDTO_60MS,WDTO_120MS,WDTO_250MS,WDTO_500MS,WDTO_1S,WDTO_2S,WDTO_4S,WDTO_8S|});",
+      "",
+      "// In loop():",
+      "wdt_reset(); // Reset watchdog timer",
+      "${0}"
+    ],
+    "description": "AVR watchdog timer code"
+  },
+  "AVR Power Reduction": {
+    "prefix": "avrpower",
+    "body": [
+      "// Disable unused peripherals",
+      "power_adc_disable();",
+      "power_spi_disable();",
+      "power_twi_disable();",
+      "// power_timer0_disable();",
+      "// power_timer1_disable();",
+      "// power_timer2_disable();",
+      "// power_usart0_disable();",
+      "${0}"
+    ],
+    "description": "AVR power reduction - disable unused peripherals"
+  },
+  "AVR ISR": {
+    "prefix": "avrisr",
+    "body": [
+      "ISR(${1|TIMER1_COMPA_vect,TIMER1_OVF_vect,INT0_vect,INT1_vect,PCINT0_vect,ADC_vect|}) {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "AVR Interrupt Service Routine"
+  },
+  "AVR Timer1": {
+    "prefix": "avrtimer1",
+    "body": [
+      "noInterrupts();",
+      "",
+      "// Clear registers",
+      "TCCR1A = 0;",
+      "TCCR1B = 0;",
+      "TCNT1 = 0;",
+      "",
+      "// Set compare match register (1 Hz)",
+      "OCR1A = ${1:15624};",
+      "",
+      "// CTC mode",
+      "TCCR1B |= (1 << WGM12);",
+      "",
+      "// Prescaler ${2:1024}",
+      "TCCR1B |= (1 << CS12) | (1 << CS10);",
+      "",
+      "// Enable timer compare interrupt",
+      "TIMSK1 |= (1 << OCIE1A);",
+      "",
+      "interrupts();",
+      "${0}",
+      "",
+      "// Add ISR:",
+      "// ISR(TIMER1_COMPA_vect) {",
+      "//   // Timer interrupt code here",
+      "// }"
+    ],
+    "description": "AVR Timer1 configuration with CTC mode"
+  },
+  "State Machine": {
+    "prefix": "statemachine",
+    "body": [
+      "enum State {",
+      "\t${1:STATE_IDLE},",
+      "\t${2:STATE_RUNNING},",
+      "\t${3:STATE_ERROR}",
+      "};",
+      "",
+      "State currentState = ${1:STATE_IDLE};",
+      "",
+      "switch (currentState) {",
+      "\tcase ${1:STATE_IDLE}:",
+      "\t\t${4:// Idle state logic}",
+      "\t\tbreak;",
+      "\t",
+      "\tcase ${2:STATE_RUNNING}:",
+      "\t\t${5:// Running state logic}",
+      "\t\tbreak;",
+      "\t",
+      "\tcase ${3:STATE_ERROR}:",
+      "\t\t${6:// Error state logic}",
+      "\t\tbreak;",
+      "}",
+      "${0}"
+    ],
+    "description": "State machine pattern with enum"
+  },
+  "Button Debounce": {
+    "prefix": "debounce",
+    "body": [
+      "int reading = digitalRead(${1:buttonPin});",
+      "",
+      "if (reading != ${2:lastButtonState}) {",
+      "\t${3:lastDebounceTime} = millis();",
+      "}",
+      "",
+      "if ((millis() - ${3:lastDebounceTime}) > ${4:debounceDelay}) {",
+      "\tif (reading != ${5:buttonState}) {",
+      "\t\t${5:buttonState} = reading;",
+      "\t\t",
+      "\t\tif (${5:buttonState} == HIGH) {",
+      "\t\t\t${6:// Button pressed action}",
+      "\t\t}",
+      "\t}",
+      "}",
+      "",
+      "${2:lastButtonState} = reading;",
+      "${0}"
+    ],
+    "description": "Button debouncing pattern"
+  },
+  "Moving Average Filter": {
+    "prefix": "movingavg",
+    "body": [
+      "// Subtract the last reading",
+      "${1:total} = ${1:total} - ${2:readings}[${3:readIndex}];",
+      "",
+      "// Read from the sensor",
+      "${2:readings}[${3:readIndex}] = ${4:analogRead(A0)};",
+      "",
+      "// Add the reading to the total",
+      "${1:total} = ${1:total} + ${2:readings}[${3:readIndex}];",
+      "",
+      "// Advance to the next position",
+      "${3:readIndex} = (${3:readIndex} + 1) % ${5:numReadings};",
+      "",
+      "// Calculate the average",
+      "${6:average} = ${1:total} / ${5:numReadings};",
+      "${0}"
+    ],
+    "description": "Moving average filter for sensor smoothing"
+  },
+  "PID Controller": {
+    "prefix": "pid",
+    "body": [
+      "double error = ${1:setpoint} - ${2:input};",
+      "${3:errSum} += error;",
+      "double dErr = error - ${4:lastErr};",
+      "",
+      "double ${5:output} = ${6:kp} * error + ${7:ki} * ${3:errSum} + ${8:kd} * dErr;",
+      "",
+      "${4:lastErr} = error;",
+      "${0}"
+    ],
+    "description": "PID controller computation"
+  },
+  "I2C Master Write": {
+    "prefix": "i2cwrite",
+    "body": [
+      "Wire.beginTransmission(${1:0x68}); // I2C address",
+      "Wire.write(${2:0x00}); // Register address",
+      "Wire.write(${3:data}); // Data to write",
+      "Wire.endTransmission();",
+      "${0}"
+    ],
+    "description": "I2C master write operation"
+  },
+  "I2C Master Read": {
+    "prefix": "i2cread",
+    "body": [
+      "Wire.beginTransmission(${1:0x68}); // I2C address",
+      "Wire.write(${2:0x00}); // Register address",
+      "Wire.endTransmission(false);",
+      "Wire.requestFrom(${1:0x68}, ${3:1}); // Request bytes",
+      "",
+      "if (Wire.available()) {",
+      "\t${4:byte data = Wire.read();}",
+      "}",
+      "${0}"
+    ],
+    "description": "I2C master read operation"
+  },
+  "I2C Scanner": {
+    "prefix": "i2cscan",
+    "body": [
+      "Serial.println(\"Scanning I2C bus...\");",
+      "",
+      "for (byte address = 1; address < 127; address++) {",
+      "\tWire.beginTransmission(address);",
+      "\tbyte error = Wire.endTransmission();",
+      "\t",
+      "\tif (error == 0) {",
+      "\t\tSerial.print(\"I2C device found at address 0x\");",
+      "\t\tif (address < 16) Serial.print(\"0\");",
+      "\t\tSerial.println(address, HEX);",
+      "\t}",
+      "}",
+      "Serial.println(\"Scan complete\");",
+      "${0}"
+    ],
+    "description": "I2C bus scanner"
+  },
+  "SPI Transaction": {
+    "prefix": "spitransaction",
+    "body": [
+      "SPI.beginTransaction(SPISettings(${1:1000000}, ${2|MSBFIRST,LSBFIRST|}, ${3|SPI_MODE0,SPI_MODE1,SPI_MODE2,SPI_MODE3|}));",
+      "digitalWrite(${4:csPin}, LOW);",
+      "",
+      "${5:byte data = SPI.transfer(0x00);}",
+      "",
+      "digitalWrite(${4:csPin}, HIGH);",
+      "SPI.endTransaction();",
+      "${0}"
+    ],
+    "description": "SPI transaction with chip select"
+  },
+  "SPI Transfer": {
+    "prefix": "spitransfer",
+    "body": [
+      "digitalWrite(${1:csPin}, LOW);",
+      "byte ${2:response} = SPI.transfer(${3:data});",
+      "digitalWrite(${1:csPin}, HIGH);",
+      "${0}"
+    ],
+    "description": "Simple SPI data transfer"
+  },
+  "Software Serial": {
+    "prefix": "softserial",
+    "body": [
+      "SoftwareSerial ${1:mySerial}(${2:10}, ${3:11}); // RX, TX",
+      "",
+      "// In setup():",
+      "${1:mySerial}.begin(${4:9600});",
+      "${0}"
+    ],
+    "description": "Software Serial setup"
+  },
+  "DHT Sensor": {
+    "prefix": "dht",
+    "body": [
+      "DHT ${1:dht}(${2:DHTPIN}, ${3|DHT11,DHT22,DHT21|});",
+      "",
+      "// In setup():",
+      "${1:dht}.begin();",
+      "${0}"
+    ],
+    "description": "DHT temperature and humidity sensor setup"
+  },
+  "DHT Read": {
+    "prefix": "dhtread",
+    "body": [
+      "float humidity = ${1:dht}.readHumidity();",
+      "float temperature = ${1:dht}.readTemperature();",
+      "",
+      "if (isnan(humidity) || isnan(temperature)) {",
+      "\tSerial.println(\"Failed to read from DHT sensor!\");",
+      "\treturn;",
+      "}",
+      "${0}"
+    ],
+    "description": "DHT sensor read operation"
+  },
+  "Ultrasonic HC-SR04": {
+    "prefix": "ultrasonic",
+    "body": [
+      "pinMode(${1:trigPin}, OUTPUT);",
+      "pinMode(${2:echoPin}, INPUT);",
+      "${0}"
+    ],
+    "description": "HC-SR04 ultrasonic sensor pin setup"
+  },
+  "Ultrasonic Read": {
+    "prefix": "ultrasonicread",
+    "body": [
+      "// Clear the trigger",
+      "digitalWrite(${1:trigPin}, LOW);",
+      "delayMicroseconds(2);",
+      "",
+      "// Trigger pulse",
+      "digitalWrite(${1:trigPin}, HIGH);",
+      "delayMicroseconds(10);",
+      "digitalWrite(${1:trigPin}, LOW);",
+      "",
+      "// Read echo",
+      "long duration = pulseIn(${2:echoPin}, HIGH);",
+      "float distance = duration * 0.034 / 2; // cm",
+      "${0}"
+    ],
+    "description": "HC-SR04 distance measurement"
+  },
+  "Button with Debounce": {
+    "prefix": "buttondebounce",
+    "body": [
+      "int reading = digitalRead(${1:buttonPin});",
+      "",
+      "if (reading != ${2:lastButtonState}) {",
+      "\t${3:lastDebounceTime} = millis();",
+      "}",
+      "",
+      "if ((millis() - ${3:lastDebounceTime}) > ${4:debounceDelay}) {",
+      "\tif (reading != ${5:buttonState}) {",
+      "\t\t${5:buttonState} = reading;",
+      "\t\t",
+      "\t\tif (${5:buttonState} == HIGH) {",
+      "\t\t\t${6:// Button pressed action}",
+      "\t\t}",
+      "\t}",
+      "}",
+      "",
+      "${2:lastButtonState} = reading;",
+      "${0}"
+    ],
+    "description": "Button with debouncing code"
+  },
+  "Button ISR": {
+    "prefix": "buttonisr",
+    "body": [
+      "volatile bool ${1:buttonPressed} = false;",
+      "",
+      "void ${2:buttonISR}() {",
+      "\t${1:buttonPressed} = true;",
+      "}",
+      "",
+      "// In setup():",
+      "pinMode(${3:buttonPin}, INPUT_PULLUP);",
+      "attachInterrupt(digitalPinToInterrupt(${3:buttonPin}), ${2:buttonISR}, ${4|FALLING,RISING,CHANGE|});",
+      "",
+      "// In loop():",
+      "if (${1:buttonPressed}) {",
+      "\t${1:buttonPressed} = false;",
+      "\t${5:// Your action here}",
+      "}",
+      "${0}"
+    ],
+    "description": "Button with interrupt service routine"
+  },
+  "RP2040 Multicore": {
+    "prefix": "rp2040core",
+    "body": [
+      "// Core 1 setup",
+      "void setup1() {",
+      "\t${1:// Initialize core 1}",
+      "}",
+      "",
+      "// Core 1 loop",
+      "void loop1() {",
+      "\t${2:// Core 1 tasks}",
+      "}",
+      "${0}"
+    ],
+    "description": "RP2040 dual-core setup and loop"
+  },
+  "RP2040 Temperature": {
+    "prefix": "rp2040temp",
+    "body": ["float temperature = analogReadTemp();", "${0}"],
+    "description": "RP2040 internal temperature sensor"
+  },
+  "RP2040 Flash": {
+    "prefix": "rp2040flash",
+    "body": [
+      "uint8_t ${1:buffer}[${2:FLASH_PAGE_SIZE}];",
+      "flash_range_erase(${3:offset}, ${4:FLASH_SECTOR_SIZE});",
+      "flash_range_program(${3:offset}, ${1:buffer}, ${2:FLASH_PAGE_SIZE});",
+      "${0}"
+    ],
+    "description": "RP2040 flash memory operations"
+  },
+  "RP2040 PIO": {
+    "prefix": "rp2040pio",
+    "body": [
+      "PIO ${1:pio} = ${2:pio0};",
+      "uint ${3:sm} = pio_claim_unused_sm(${1:pio}, true);",
+      "uint ${4:offset} = pio_add_program(${1:pio}, &${5:program});",
+      "pio_sm_config ${6:c} = ${5:program}_program_get_default_config(${4:offset});",
+      "pio_sm_init(${1:pio}, ${3:sm}, ${4:offset}, &${6:c});",
+      "pio_sm_set_enabled(${1:pio}, ${3:sm}, true);",
+      "${0}"
+    ],
+    "description": "RP2040 PIO state machine setup"
+  },
+  "SAMD RTC": {
+    "prefix": "samdrtc",
+    "body": [
+      "#include <RTCZero.h>",
+      "",
+      "RTCZero ${1:rtc};",
+      "",
+      "// In setup():",
+      "${1:rtc}.begin();",
+      "${1:rtc}.setTime(${2:hours}, ${3:minutes}, ${4:seconds});",
+      "${1:rtc}.setDate(${5:day}, ${6:month}, ${7:year});",
+      "${0}"
+    ],
+    "description": "SAMD Real-Time Clock setup"
+  },
+  "SAMD Sleep": {
+    "prefix": "samdsleep",
+    "body": [
+      "#include <ArduinoLowPower.h>",
+      "",
+      "LowPower.sleep(${1:5000}); // Sleep for milliseconds",
+      "${0}"
+    ],
+    "description": "SAMD low power sleep"
+  },
+  "SAMD Deep Sleep": {
+    "prefix": "samddeepsleep",
+    "body": [
+      "#include <ArduinoLowPower.h>",
+      "",
+      "LowPower.deepSleep();",
+      "${0}"
+    ],
+    "description": "SAMD deep sleep mode"
+  },
+  "Teensy Audio": {
+    "prefix": "teensyaudio",
+    "body": [
+      "#include <Audio.h>",
+      "",
+      "AudioSynthWaveform ${1:waveform};",
+      "AudioOutputI2S ${2:i2s};",
+      "AudioConnection ${3:patchCord}(${1:waveform}, 0, ${2:i2s}, 0);",
+      "",
+      "// In setup():",
+      "AudioMemory(${4:10});",
+      "${1:waveform}.begin(${5:0.5}, ${6:440}, ${7|WAVEFORM_SINE,WAVEFORM_SQUARE,WAVEFORM_SAWTOOTH,WAVEFORM_TRIANGLE|});",
+      "${0}"
+    ],
+    "description": "Teensy audio library setup"
+  },
+  "Teensy USB Mouse": {
+    "prefix": "teensymouse",
+    "body": ["Mouse.move(${1:x}, ${2:y});", "${0}"],
+    "description": "Teensy USB mouse emulation"
+  },
+  "Teensy USB Keyboard": {
+    "prefix": "teensykeyboard",
+    "body": ["Keyboard.print(\"${1:text}\");", "${0}"],
+    "description": "Teensy USB keyboard emulation"
+  },
+  "STM32 Timer": {
+    "prefix": "stm32timer",
+    "body": [
+      "HardwareTimer *${1:timer} = new HardwareTimer(${2:TIM1});",
+      "${1:timer}->setOverflow(${3:1000}, ${4|HERTZ_FORMAT,MICROSEC_FORMAT,TICK_FORMAT|});",
+      "${1:timer}->attachInterrupt(${5:callback});",
+      "${1:timer}->resume();",
+      "${0}"
+    ],
+    "description": "STM32 hardware timer setup"
+  },
+  "STM32 DMA": {
+    "prefix": "stm32dma",
+    "body": [
+      "HAL_DMA_Start(&${1:hdma}, ${2:srcAddress}, ${3:dstAddress}, ${4:dataLength});",
+      "${0}"
+    ],
+    "description": "STM32 DMA transfer"
+  },
+  "STM32 Low Power": {
+    "prefix": "stm32sleep",
+    "body": [
+      "HAL_PWR_EnterSLEEPMode(${1|PWR_MAINREGULATOR_ON,PWR_LOWPOWERREGULATOR_ON|}, ${2|PWR_SLEEPENTRY_WFI,PWR_SLEEPENTRY_WFE|});",
+      "${0}"
+    ],
+    "description": "STM32 low power sleep mode"
+  },
+  "OLED SSD1306": {
+    "prefix": "oled",
+    "body": [
+      "#include <Adafruit_SSD1306.h>",
+      "",
+      "Adafruit_SSD1306 ${1:display}(${2:128}, ${3:64}, &Wire, ${4:-1});",
+      "",
+      "// In setup():",
+      "${1:display}.begin(SSD1306_SWITCHCAPVCC, ${5:0x3C});",
+      "${1:display}.clearDisplay();",
+      "${1:display}.setTextSize(${6:1});",
+      "${1:display}.setTextColor(SSD1306_WHITE);",
+      "${1:display}.setCursor(${7:0}, ${8:0});",
+      "${1:display}.println(\"${9:Hello}\");",
+      "${1:display}.display();",
+      "${0}"
+    ],
+    "description": "OLED SSD1306 display setup"
+  },
+  "OLED Draw": {
+    "prefix": "oleddraw",
+    "body": [
+      "${1:display}.clearDisplay();",
+      "${1:display}.setCursor(${2:0}, ${3:0});",
+      "${1:display}.println(\"${4:text}\");",
+      "${1:display}.display();",
+      "${0}"
+    ],
+    "description": "OLED display text"
+  },
+  "LCD I2C": {
+    "prefix": "lcdi2c",
+    "body": [
+      "#include <LiquidCrystal_I2C.h>",
+      "",
+      "LiquidCrystal_I2C ${1:lcd}(${2:0x27}, ${3:16}, ${4:2});",
+      "",
+      "// In setup():",
+      "${1:lcd}.init();",
+      "${1:lcd}.backlight();",
+      "${1:lcd}.setCursor(${5:0}, ${6:0});",
+      "${1:lcd}.print(\"${7:Hello}\");",
+      "${0}"
+    ],
+    "description": "LCD I2C display setup"
+  },
+  "TFT Display": {
+    "prefix": "tft",
+    "body": [
+      "#include <Adafruit_GFX.h>",
+      "#include <Adafruit_ST7735.h>",
+      "",
+      "Adafruit_ST7735 ${1:tft} = Adafruit_ST7735(${2:TFT_CS}, ${3:TFT_DC}, ${4:TFT_RST});",
+      "",
+      "// In setup():",
+      "${1:tft}.initR(INITR_BLACKTAB);",
+      "${1:tft}.fillScreen(ST77XX_BLACK);",
+      "${1:tft}.setTextColor(ST77XX_WHITE);",
+      "${1:tft}.setCursor(${5:0}, ${6:0});",
+      "${1:tft}.println(\"${7:Hello}\");",
+      "${0}"
+    ],
+    "description": "TFT ST7735 display setup"
+  },
+  "Stepper Motor": {
+    "prefix": "stepper",
+    "body": [
+      "#include <Stepper.h>",
+      "",
+      "Stepper ${1:stepper}(${2:200}, ${3:8}, ${4:9}, ${5:10}, ${6:11});",
+      "",
+      "// In setup():",
+      "${1:stepper}.setSpeed(${7:60}); // RPM",
+      "",
+      "// To step:",
+      "${1:stepper}.step(${8:100}); // steps",
+      "${0}"
+    ],
+    "description": "Stepper motor control"
+  },
+  "AccelStepper": {
+    "prefix": "accelstepper",
+    "body": [
+      "#include <AccelStepper.h>",
+      "",
+      "AccelStepper ${1:stepper}(AccelStepper::${2|DRIVER,FULL2WIRE,FULL3WIRE,FULL4WIRE,HALF3WIRE,HALF4WIRE|}, ${3:stepPin}, ${4:dirPin});",
+      "",
+      "// In setup():",
+      "${1:stepper}.setMaxSpeed(${5:1000});",
+      "${1:stepper}.setAcceleration(${6:500});",
+      "",
+      "// To move:",
+      "${1:stepper}.moveTo(${7:1000});",
+      "",
+      "// In loop():",
+      "${1:stepper}.run();",
+      "${0}"
+    ],
+    "description": "AccelStepper library setup"
+  },
+  "DC Motor L298N": {
+    "prefix": "dcmotor",
+    "body": [
+      "// Motor pins",
+      "const int ${1:in1} = ${2:2};",
+      "const int ${3:in2} = ${4:3};",
+      "const int ${5:ena} = ${6:9}; // PWM pin",
+      "",
+      "// In setup():",
+      "pinMode(${1:in1}, OUTPUT);",
+      "pinMode(${3:in2}, OUTPUT);",
+      "pinMode(${5:ena}, OUTPUT);",
+      "",
+      "// Forward",
+      "digitalWrite(${1:in1}, HIGH);",
+      "digitalWrite(${3:in2}, LOW);",
+      "analogWrite(${5:ena}, ${7:255}); // Speed 0-255",
+      "${0}"
+    ],
+    "description": "DC motor control with L298N"
+  },
+  "Servo Sweep": {
+    "prefix": "servosweep",
+    "body": [
+      "for (int pos = ${1:0}; pos <= ${2:180}; pos++) {",
+      "\t${3:myServo}.write(pos);",
+      "\tdelay(${4:15});",
+      "}",
+      "for (int pos = ${2:180}; pos >= ${1:0}; pos--) {",
+      "\t${3:myServo}.write(pos);",
+      "\tdelay(${4:15});",
+      "}",
+      "${0}"
+    ],
+    "description": "Servo sweep pattern"
+  },
+  "MPU6050 IMU": {
+    "prefix": "mpu6050",
+    "body": [
+      "#include <MPU6050.h>",
+      "",
+      "MPU6050 ${1:mpu};",
+      "",
+      "// In setup():",
+      "${1:mpu}.initialize();",
+      "",
+      "// Read accelerometer & gyro:",
+      "int16_t ${2:ax}, ${3:ay}, ${4:az};",
+      "int16_t ${5:gx}, ${6:gy}, ${7:gz};",
+      "${1:mpu}.getMotion6(&${2:ax}, &${3:ay}, &${4:az}, &${5:gx}, &${6:gy}, &${7:gz});",
+      "${0}"
+    ],
+    "description": "MPU6050 IMU sensor"
+  },
+  "BME280 Sensor": {
+    "prefix": "bme280",
+    "body": [
+      "#include <Adafruit_BME280.h>",
+      "",
+      "Adafruit_BME280 ${1:bme};",
+      "",
+      "// In setup():",
+      "${1:bme}.begin(${2:0x76});",
+      "",
+      "// Read sensor:",
+      "float ${3:temperature} = ${1:bme}.readTemperature();",
+      "float ${4:pressure} = ${1:bme}.readPressure() / 100.0F;",
+      "float ${5:humidity} = ${1:bme}.readHumidity();",
+      "${0}"
+    ],
+    "description": "BME280 temperature/pressure/humidity sensor"
+  },
+  "BMP280 Sensor": {
+    "prefix": "bmp280",
+    "body": [
+      "#include <Adafruit_BMP280.h>",
+      "",
+      "Adafruit_BMP280 ${1:bmp};",
+      "",
+      "// In setup():",
+      "${1:bmp}.begin(${2:0x76});",
+      "",
+      "// Read sensor:",
+      "float ${3:temperature} = ${1:bmp}.readTemperature();",
+      "float ${4:pressure} = ${1:bmp}.readPressure() / 100.0F;",
+      "float ${5:altitude} = ${1:bmp}.readAltitude(${6:1013.25});",
+      "${0}"
+    ],
+    "description": "BMP280 temperature/pressure sensor"
+  },
+  "GPS NEO-6M": {
+    "prefix": "gps",
+    "body": [
+      "#include <TinyGPS++.h>",
+      "#include <SoftwareSerial.h>",
+      "",
+      "TinyGPSPlus ${1:gps};",
+      "SoftwareSerial ${2:ss}(${3:4}, ${4:3}); // RX, TX",
+      "",
+      "// In setup():",
+      "${2:ss}.begin(${5:9600});",
+      "",
+      "// In loop():",
+      "while (${2:ss}.available() > 0) {",
+      "\tif (${1:gps}.encode(${2:ss}.read())) {",
+      "\t\tif (${1:gps}.location.isValid()) {",
+      "\t\t\tdouble ${6:lat} = ${1:gps}.location.lat();",
+      "\t\t\tdouble ${7:lng} = ${1:gps}.location.lng();",
+      "\t\t\t${8:// Use coordinates}",
+      "\t\t}",
+      "\t}",
+      "}",
+      "${0}"
+    ],
+    "description": "GPS NEO-6M module with TinyGPS++"
+  },
+  "BH1750 Light Sensor": {
+    "prefix": "bh1750",
+    "body": [
+      "#include <BH1750.h>",
+      "",
+      "BH1750 ${1:lightMeter};",
+      "",
+      "// In setup():",
+      "${1:lightMeter}.begin();",
+      "",
+      "// Read light level:",
+      "float ${2:lux} = ${1:lightMeter}.readLightLevel();",
+      "${0}"
+    ],
+    "description": "BH1750 light sensor"
+  },
+  "MQTT Client": {
+    "prefix": "mqtt",
+    "body": [
+      "#include <PubSubClient.h>",
+      "",
+      "WiFiClient ${1:espClient};",
+      "PubSubClient ${2:client}(${1:espClient});",
+      "",
+      "void ${3:callback}(char* topic, byte* payload, unsigned int length) {",
+      "\t${4:// Handle message}",
+      "}",
+      "",
+      "// In setup():",
+      "${2:client}.setServer(${5:mqtt_server}, ${6:1883});",
+      "${2:client}.setCallback(${3:callback});",
+      "",
+      "// Connect:",
+      "if (${2:client}.connect(\"${7:clientId}\")) {",
+      "\t${2:client}.subscribe(\"${8:topic}\");",
+      "}",
+      "",
+      "// Publish:",
+      "${2:client}.publish(\"${9:topic}\", \"${10:message}\");",
+      "",
+      "// In loop():",
+      "${2:client}.loop();",
+      "${0}"
+    ],
+    "description": "MQTT client setup"
+  },
+  "HTTP GET": {
+    "prefix": "httpget",
+    "body": [
+      "#include <HTTPClient.h>",
+      "",
+      "HTTPClient ${1:http};",
+      "${1:http}.begin(\"${2:http://example.com/api}\");",
+      "int ${3:httpCode} = ${1:http}.GET();",
+      "",
+      "if (${3:httpCode} > 0) {",
+      "\tString ${4:payload} = ${1:http}.getString();",
+      "\t${5:// Process response}",
+      "}",
+      "",
+      "${1:http}.end();",
+      "${0}"
+    ],
+    "description": "HTTP GET request"
+  },
+  "HTTP POST": {
+    "prefix": "httppost",
+    "body": [
+      "#include <HTTPClient.h>",
+      "",
+      "HTTPClient ${1:http};",
+      "${1:http}.begin(\"${2:http://example.com/api}\");",
+      "${1:http}.addHeader(\"Content-Type\", \"application/json\");",
+      "int ${3:httpCode} = ${1:http}.POST(\"${4:{\\\"key\\\":\\\"value\\\"}}\");",
+      "",
+      "if (${3:httpCode} > 0) {",
+      "\tString ${5:response} = ${1:http}.getString();",
+      "\t${6:// Process response}",
+      "}",
+      "",
+      "${1:http}.end();",
+      "${0}"
+    ],
+    "description": "HTTP POST request"
+  },
+  "WebSocket Client": {
+    "prefix": "websocket",
+    "body": [
+      "#include <WebSocketsClient.h>",
+      "",
+      "WebSocketsClient ${1:webSocket};",
+      "",
+      "void ${2:webSocketEvent}(WStype_t type, uint8_t * payload, size_t length) {",
+      "\tswitch(type) {",
+      "\t\tcase WStype_CONNECTED:",
+      "\t\t\t${3:// Connected}",
+      "\t\t\tbreak;",
+      "\t\tcase WStype_TEXT:",
+      "\t\t\t${4:// Received text}",
+      "\t\t\tbreak;",
+      "\t}",
+      "}",
+      "",
+      "// In setup():",
+      "${1:webSocket}.begin(\"${5:server}\", ${6:80}, \"${7:/ws}\");",
+      "${1:webSocket}.onEvent(${2:webSocketEvent});",
+      "",
+      "// In loop():",
+      "${1:webSocket}.loop();",
+      "${0}"
+    ],
+    "description": "WebSocket client setup"
+  },
+  "ArduinoJson Parse": {
+    "prefix": "jsonparse",
+    "body": [
+      "#include <ArduinoJson.h>",
+      "",
+      "JsonDocument ${1:doc};",
+      "DeserializationError ${2:error} = deserializeJson(${1:doc}, ${3:jsonString});",
+      "",
+      "if (!${2:error}) {",
+      "\tconst char* ${4:value} = ${1:doc}[\"${5:key}\"];",
+      "\t${6:// Use parsed data}",
+      "}",
+      "${0}"
+    ],
+    "description": "ArduinoJson parse JSON string"
+  },
+  "ArduinoJson Create": {
+    "prefix": "jsoncreate",
+    "body": [
+      "#include <ArduinoJson.h>",
+      "",
+      "JsonDocument ${1:doc};",
+      "${1:doc}[\"${2:key}\"] = \"${3:value}\";",
+      "${1:doc}[\"${4:number}\"] = ${5:123};",
+      "",
+      "String ${6:output};",
+      "serializeJson(${1:doc}, ${6:output});",
+      "${0}"
+    ],
+    "description": "ArduinoJson create JSON object"
+  },
+  "SD Card Read": {
+    "prefix": "sdread",
+    "body": [
+      "#include <SD.h>",
+      "",
+      "// In setup():",
+      "SD.begin(${1:CS_PIN});",
+      "",
+      "// Read file:",
+      "File ${2:file} = SD.open(\"${3:data.txt}\");",
+      "if (${2:file}) {",
+      "\twhile (${2:file}.available()) {",
+      "\t\tchar ${4:c} = ${2:file}.read();",
+      "\t\t${5:// Process character}",
+      "\t}",
+      "\t${2:file}.close();",
+      "}",
+      "${0}"
+    ],
+    "description": "SD card read file"
+  },
+  "SD Card Write": {
+    "prefix": "sdwrite",
+    "body": [
+      "#include <SD.h>",
+      "",
+      "// In setup():",
+      "SD.begin(${1:CS_PIN});",
+      "",
+      "// Write to file:",
+      "File ${2:file} = SD.open(\"${3:data.txt}\", FILE_WRITE);",
+      "if (${2:file}) {",
+      "\t${2:file}.println(\"${4:data}\");",
+      "\t${2:file}.close();",
+      "}",
+      "${0}"
+    ],
+    "description": "SD card write to file"
+  },
+  "CSV Logger": {
+    "prefix": "csvlog",
+    "body": [
+      "File ${1:file} = SD.open(\"${2:data.csv}\", FILE_WRITE);",
+      "if (${1:file}) {",
+      "\t${1:file}.print(${3:value1});",
+      "\t${1:file}.print(\",\");",
+      "\t${1:file}.print(${4:value2});",
+      "\t${1:file}.print(\",\");",
+      "\t${1:file}.println(${5:value3});",
+      "\t${1:file}.close();",
+      "}",
+      "${0}"
+    ],
+    "description": "CSV data logging to SD card"
+  },
+  "NeoPixel": {
+    "prefix": "neopixel",
+    "body": [
+      "#include <Adafruit_NeoPixel.h>",
+      "",
+      "Adafruit_NeoPixel ${1:strip}(${2:60}, ${3:6}, NEO_GRB + NEO_KHZ800);",
+      "",
+      "// In setup():",
+      "${1:strip}.begin();",
+      "${1:strip}.show();",
+      "${1:strip}.setBrightness(${4:50});",
+      "",
+      "// Set pixel color:",
+      "${1:strip}.setPixelColor(${5:0}, ${1:strip}.Color(${6:255}, ${7:0}, ${8:0}));",
+      "${1:strip}.show();",
+      "${0}"
+    ],
+    "description": "NeoPixel/WS2812B LED setup"
+  },
+  "NeoPixel Rainbow": {
+    "prefix": "neopixelrainbow",
+    "body": [
+      "for (int i = 0; i < ${1:strip}.numPixels(); i++) {",
+      "\tint ${2:pixelHue} = ${3:firstPixelHue} + (i * 65536L / ${1:strip}.numPixels());",
+      "\t${1:strip}.setPixelColor(i, ${1:strip}.gamma32(${1:strip}.ColorHSV(${2:pixelHue})));",
+      "}",
+      "${1:strip}.show();",
+      "${0}"
+    ],
+    "description": "NeoPixel rainbow effect"
+  },
+  "FastLED": {
+    "prefix": "fastled",
+    "body": [
+      "#include <FastLED.h>",
+      "",
+      "#define NUM_LEDS ${1:60}",
+      "#define DATA_PIN ${2:6}",
+      "",
+      "CRGB ${3:leds}[NUM_LEDS];",
+      "",
+      "// In setup():",
+      "FastLED.addLeds<${4|WS2812B,NEOPIXEL,APA102,SK9822,WS2801,WS2811|}, DATA_PIN, ${5|GRB,RGB,BRG|}>(${3:leds}, NUM_LEDS);",
+      "FastLED.setBrightness(${6:50});",
+      "",
+      "// Set color:",
+      "${3:leds}[${7:0}] = CRGB::${8|Red,Green,Blue,White,Black|};",
+      "FastLED.show();",
+      "${0}"
+    ],
+    "description": "FastLED library setup"
+  },
+  "FastLED Rainbow": {
+    "prefix": "fastledrainbow",
+    "body": [
+      "fill_rainbow(${1:leds}, ${2:NUM_LEDS}, ${3:startHue}, ${4:deltaHue});",
+      "FastLED.show();",
+      "${0}"
+    ],
+    "description": "FastLED rainbow fill"
+  },
+  "Ring Buffer": {
+    "prefix": "ringbuffer",
+    "body": [
+      "const int ${1:BUFFER_SIZE} = ${2:64};",
+      "byte ${3:buffer}[${1:BUFFER_SIZE}];",
+      "int ${4:head} = 0;",
+      "int ${5:tail} = 0;",
+      "",
+      "// Write to buffer:",
+      "${3:buffer}[${4:head}] = ${6:data};",
+      "${4:head} = (${4:head} + 1) % ${1:BUFFER_SIZE};",
+      "",
+      "// Read from buffer:",
+      "if (${4:head} != ${5:tail}) {",
+      "\tbyte ${7:data} = ${3:buffer}[${5:tail}];",
+      "\t${5:tail} = (${5:tail} + 1) % ${1:BUFFER_SIZE};",
+      "}",
+      "${0}"
+    ],
+    "description": "Ring buffer implementation"
+  },
+  "Serial Command Parser": {
+    "prefix": "serialparser",
+    "body": [
+      "String ${1:command} = \"\";",
+      "",
+      "// In loop():",
+      "while (Serial.available()) {",
+      "\tchar ${2:c} = Serial.read();",
+      "\tif (${2:c} == '\\n') {",
+      "\t\t${1:command}.trim();",
+      "\t\tif (${1:command} == \"${3:CMD1}\") {",
+      "\t\t\t${4:// Handle command 1}",
+      "\t\t} else if (${1:command} == \"${5:CMD2}\") {",
+      "\t\t\t${6:// Handle command 2}",
+      "\t\t}",
+      "\t\t${1:command} = \"\";",
+      "\t} else {",
+      "\t\t${1:command} += ${2:c};",
+      "\t}",
+      "}",
+      "${0}"
+    ],
+    "description": "Serial command parser"
+  },
+  "Non-Blocking Timer": {
+    "prefix": "nonblocking",
+    "body": [
+      "unsigned long ${1:previousMillis} = 0;",
+      "const long ${2:interval} = ${3:1000};",
+      "",
+      "// In loop():",
+      "unsigned long ${4:currentMillis} = millis();",
+      "if (${4:currentMillis} - ${1:previousMillis} >= ${2:interval}) {",
+      "\t${1:previousMillis} = ${4:currentMillis};",
+      "\t${5:// Your code here}",
+      "}",
+      "${0}"
+    ],
+    "description": "Non-blocking timer pattern with millis()"
+  },
+  "Exponential Moving Average": {
+    "prefix": "ema",
+    "body": [
+      "float ${1:alpha} = ${2:0.1}; // Smoothing factor (0-1)",
+      "float ${3:ema} = ${4:0}; // EMA value",
+      "",
+      "// Update EMA:",
+      "${3:ema} = ${1:alpha} * ${5:newValue} + (1 - ${1:alpha}) * ${3:ema};",
+      "${0}"
+    ],
+    "description": "Exponential moving average filter"
+  },
+  "Median Filter": {
+    "prefix": "median",
+    "body": [
+      "const int ${1:WINDOW_SIZE} = ${2:5};",
+      "int ${3:readings}[${1:WINDOW_SIZE}];",
+      "int ${4:sorted}[${1:WINDOW_SIZE}];",
+      "",
+      "// Add new reading and shift array",
+      "for (int i = ${1:WINDOW_SIZE} - 1; i > 0; i--) {",
+      "\t${3:readings}[i] = ${3:readings}[i - 1];",
+      "}",
+      "${3:readings}[0] = ${5:newReading};",
+      "",
+      "// Copy and sort",
+      "memcpy(${4:sorted}, ${3:readings}, sizeof(${3:readings}));",
+      "for (int i = 0; i < ${1:WINDOW_SIZE} - 1; i++) {",
+      "\tfor (int j = i + 1; j < ${1:WINDOW_SIZE}; j++) {",
+      "\t\tif (${4:sorted}[j] < ${4:sorted}[i]) {",
+      "\t\t\tint temp = ${4:sorted}[i];",
+      "\t\t\t${4:sorted}[i] = ${4:sorted}[j];",
+      "\t\t\t${4:sorted}[j] = temp;",
+      "\t\t}",
+      "\t}",
+      "}",
+      "",
+      "// Median is middle value",
+      "int ${6:median} = ${4:sorted}[${1:WINDOW_SIZE} / 2];",
+      "${0}"
+    ],
+    "description": "Median filter for noise reduction"
+  },
+  "Watchdog Reset": {
+    "prefix": "watchdog",
+    "body": [
+      "#include <avr/wdt.h>",
+      "",
+      "// In setup():",
+      "wdt_enable(${1|WDTO_15MS,WDTO_30MS,WDTO_60MS,WDTO_120MS,WDTO_250MS,WDTO_500MS,WDTO_1S,WDTO_2S,WDTO_4S,WDTO_8S|});",
+      "",
+      "// In loop():",
+      "wdt_reset();",
+      "${0}"
+    ],
+    "description": "Watchdog timer for system reset"
   }
 }
