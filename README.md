@@ -8,7 +8,7 @@ Full Arduino development support in Zed with IntelliSense, diagnostics, and synt
 - 📝 Code snippets for common Arduino patterns and platform-specific features (ESP32, ESP8266, AVR)
 - 🧠 Code completion, hover info, and go-to-definition
 - 🔍 Real-time diagnostics and error checking
-- 🔧 Auto-downloads Arduino Language Server and arduino-cli
+- 🔧 Auto-downloads Arduino Language Server, arduino-cli, and clangd
 - ⚡ Zero-config setup - auto-generates project settings
 - 🔌 Auto-detects connected boards and configures FQBN and port
 
@@ -225,6 +225,90 @@ To use a manually downloaded language server from any source:
 
 This skips automatic downloads entirely and uses your specified binary.
 
+### Option 3: Version Pinning
+
+Pin specific versions of the Arduino Language Server, arduino-cli, and/or clangd to ensure consistent behavior across your team and complete toolchain control.
+
+**Pin Language Server version:**
+
+```json
+{
+  "lsp": {
+    "arduino": {
+      "settings": {
+        "languageServerVersion": "0.7.5"
+      },
+      "binary": {
+        "arguments": ["-fqbn", "esp32:esp32:esp32s3"]
+      }
+    }
+  }
+}
+```
+
+**Pin arduino-cli version:**
+
+```json
+{
+  "lsp": {
+    "arduino": {
+      "settings": {
+        "arduinoCliVersion": "1.0.4"
+      },
+      "binary": {
+        "arguments": ["-fqbn", "esp32:esp32:esp32s3"]
+      }
+    }
+  }
+}
+```
+
+**Pin clangd version:**
+
+```json
+{
+  "lsp": {
+    "arduino": {
+      "settings": {
+        "clangdVersion": "18.1.3"
+      },
+      "binary": {
+        "arguments": ["-fqbn", "esp32:esp32:esp32s3"]
+      }
+    }
+  }
+}
+```
+
+**Pin all versions (recommended for maximum reproducibility):**
+
+```json
+{
+  "lsp": {
+    "arduino": {
+      "settings": {
+        "languageServerVersion": "0.7.5",
+        "arduinoCliVersion": "1.0.4",
+        "clangdVersion": "18.1.3"
+      },
+      "binary": {
+        "arguments": ["-fqbn", "esp32:esp32:esp32s3"]
+      }
+    }
+  }
+}
+```
+
+Versions can be specified with or without the `v` prefix for languageServerVersion and arduinoCliVersion (e.g., `"0.7.5"` or `"v0.7.5"`). For clangd, use the version number directly (e.g., `"18.1.3"`).
+
+**Why pin versions?**
+- Ensure consistent behavior across team members
+- Avoid breaking changes from new releases
+- Test compatibility with specific versions
+- Reproducible builds and toolchain management
+
+**Note:** Leave version settings empty or omit them to always use the latest versions. The `languageServerVersion` setting works with both the default `arduino/arduino-language-server` repo and custom GitHub repositories specified via `githubRepo`.
+
 ## Full Automation (Optional)
 
 For a completely hands-off experience, enable automatic core installation and compilation database generation:
@@ -256,7 +340,10 @@ All settings are optional and can be added to `.zed/settings.json`:
 |---------|---------|-------------|
 | `autoGenerateProjectSettings` | `true` | Auto-create `.zed/settings.json` template |
 | `githubRepo` | `arduino/arduino-language-server` | Custom GitHub repo (format: `owner/repo`) |
+| `languageServerVersion` | `""` (latest) | Pin to specific language server version (e.g., `"0.7.5"` or `"v0.7.5"`) |
 | `autoDownloadCli` | `true` | Auto-download arduino-cli from GitHub |
+| `arduinoCliVersion` | `""` (latest) | Pin to specific arduino-cli version (e.g., `"1.0.4"` or `"v1.0.4"`) |
+| `clangdVersion` | `""` (latest) | Pin to specific clangd version (e.g., `"18.1.3"`) |
 | `autoCreateConfig` | `false` | Auto-create `arduino-cli.yaml` if missing |
 | `autoInstallCore` | `false` | Auto-install board core for your FQBN |
 | `autoGenerateCompileDb` | `false` | Auto-generate `compile_commands.json` |
@@ -373,9 +460,11 @@ arduino-cli compile --fqbn YOUR:BOARD:FQBN --only-compilation-database .
 **Check logs:**
 In Zed: `Cmd+Shift+P` → "zed: open log"
 
-## Manual Installation (arduino-cli)
+## Manual Installation
 
-The extension auto-downloads arduino-cli by default. To install manually instead:
+The extension auto-downloads all required components by default. To install manually instead:
+
+### Arduino CLI
 
 ```bash
 # macOS
@@ -384,8 +473,48 @@ brew install arduino-cli
 # Linux
 curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh
 
-# Then disable auto-download
-# Set "autoDownloadCli": false in settings
+# Windows
+# Download from https://github.com/arduino/arduino-cli/releases
+```
+
+### clangd
+
+```bash
+# macOS
+brew install llvm
+
+# Linux (Ubuntu/Debian)
+sudo apt install clangd
+
+# Arch Linux
+sudo pacman -S clang
+
+# Or let Zed install it by opening any C++ file
+```
+
+### Arduino Language Server
+
+Download from [GitHub releases](https://github.com/arduino/arduino-language-server/releases) or use a custom fork via the `githubRepo` setting.
+
+### Disable Auto-Downloads
+
+To use manually installed versions, they must be in your PATH, or you can configure explicit paths in `.zed/settings.json`:
+
+```json
+{
+  "lsp": {
+    "arduino": {
+      "binary": {
+        "path": "/path/to/arduino-language-server",
+        "arguments": [
+          "-cli", "/path/to/arduino-cli",
+          "-clangd", "/path/to/clangd",
+          "-fqbn", "esp32:esp32:esp32s3"
+        ]
+      }
+    }
+  }
+}
 ```
 
 ## License

@@ -10,6 +10,7 @@ use zed_extension_api::{self as zed, serde_json, settings::LspSettings, Language
 struct ArduinoExtension {
     cached_language_server_path: Option<String>,
     cached_arduino_cli_path: Option<String>,
+    cached_clangd_path: Option<String>,
 }
 
 impl ArduinoExtension {
@@ -87,6 +88,7 @@ impl zed::Extension for ArduinoExtension {
         Self {
             cached_language_server_path: None,
             cached_arduino_cli_path: None,
+            cached_clangd_path: None,
         }
     }
 
@@ -125,15 +127,24 @@ impl zed::Extension for ArduinoExtension {
         let user_specified_cli = args.iter().any(|arg| arg == "-cli");
 
         if !user_specified_clangd {
-            // Use detection module to find clangd automatically
+            // Try to find clangd in PATH or Zed-managed locations first
             if let Some(clangd_path) = detection::find_clangd(worktree) {
                 args.push("-clangd".to_string());
                 args.push(clangd_path);
             } else {
-                eprintln!(
-                    "Arduino: clangd not found. IntelliSense may be limited.\n\
-                     Install clangd or open a C++ file to trigger Zed's automatic installation."
-                );
+                // If not found, try downloading it
+                match downloads::get_clangd_binary(worktree, &mut self.cached_clangd_path) {
+                    Ok(clangd_path) => {
+                        args.push("-clangd".to_string());
+                        args.push(clangd_path);
+                    }
+                    Err(e) => {
+                        eprintln!(
+                            "Arduino: Failed to get clangd: {}. IntelliSense may be limited.",
+                            e
+                        );
+                    }
+                }
             }
         }
 
