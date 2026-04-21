@@ -65,9 +65,16 @@ pub fn get_language_server_binary(
         eprintln!("Arduino: Checking for Arduino Language Server updates...");
     }
 
-    let release = if let Some(version) = version_to_use {
+    let release = if let Some(ref version) = version_to_use {
         // Download specific version
-        fetch_specific_version(&repo, &version)?
+        fetch_specific_version(&repo, version).map_err(|e| {
+            let auto_download = crate::utils::get_setting(worktree, "autoDownloadCli", true);
+            crate::validation::format_dependency_error(
+                "arduino-language-server",
+                &format!("Failed to fetch version {}: {}", version, e),
+                auto_download,
+            )
+        })?
     } else {
         // Download latest version
         zed::latest_github_release(
@@ -76,7 +83,14 @@ pub fn get_language_server_binary(
                 require_assets: true,
                 pre_release: false,
             },
-        )?
+        ).map_err(|e| {
+            let auto_download = crate::utils::get_setting(worktree, "autoDownloadCli", true);
+            crate::validation::format_dependency_error(
+                "arduino-language-server",
+                &format!("Failed to fetch latest release: {}. This may be due to GitHub API rate limits.", e),
+                auto_download
+            )
+        })?
     };
 
     let (platform, arch) = zed::current_platform();
@@ -142,6 +156,23 @@ pub fn get_language_server_binary(
         .to_string_lossy()
         .to_string();
 
+    // Validate the downloaded binary
+    match crate::validation::validate_language_server(&absolute_path) {
+        Ok(version_info) => {
+            eprintln!("Arduino: Language Server validated: {}", version_info);
+        }
+        Err(e) => {
+            let auto_download = crate::utils::get_setting(worktree, "autoDownloadCli", true);
+            let error_msg = crate::validation::format_dependency_error(
+                "arduino-language-server",
+                &e,
+                auto_download,
+            );
+            eprintln!("{}", error_msg);
+            return Err(format!("Language server validation failed: {}", e));
+        }
+    }
+
     *cached_path = Some(absolute_path.clone());
     Ok(absolute_path)
 }
@@ -198,9 +229,15 @@ pub fn get_arduino_cli_binary(
         eprintln!("Arduino: arduino-cli not found in PATH, downloading...");
     }
 
-    let release = if let Some(version) = version_to_use {
+    let release = if let Some(ref version) = version_to_use {
         // Download specific version
-        fetch_specific_version_cli(&version)?
+        fetch_specific_version_cli(version).map_err(|e| {
+            crate::validation::format_dependency_error(
+                "arduino-cli",
+                &format!("Failed to fetch version {}: {}", version, e),
+                true,
+            )
+        })?
     } else {
         // Download latest version
         zed::latest_github_release(
@@ -209,7 +246,14 @@ pub fn get_arduino_cli_binary(
                 require_assets: true,
                 pre_release: false,
             },
-        )?
+        )
+        .map_err(|e| {
+            crate::validation::format_dependency_error(
+                "arduino-cli",
+                &format!("Failed to fetch latest release: {}", e),
+                true,
+            )
+        })?
     };
 
     let (platform, arch) = zed::current_platform();
@@ -247,8 +291,13 @@ pub fn get_arduino_cli_binary(
         };
 
         eprintln!("Arduino: Downloading arduino-cli v{}...", version);
-        zed::download_file(&asset.download_url, &version_dir, file_type)
-            .map_err(|e| format!("failed to download arduino-cli: {e}"))?;
+        zed::download_file(&asset.download_url, &version_dir, file_type).map_err(|e| {
+            crate::validation::format_dependency_error(
+                "arduino-cli",
+                &format!("Download failed: {}", e),
+                true,
+            )
+        })?;
 
         zed::make_file_executable(&binary_path)?;
 
@@ -259,6 +308,18 @@ pub fn get_arduino_cli_binary(
     let work_dir =
         std::env::current_dir().map_err(|e| format!("failed to get work directory: {e}"))?;
     let absolute_path = work_dir.join(&binary_path).to_string_lossy().to_string();
+
+    // Validate the downloaded binary
+    match crate::validation::validate_arduino_cli(&absolute_path) {
+        Ok(version_info) => {
+            eprintln!("Arduino: arduino-cli validated: {}", version_info);
+        }
+        Err(e) => {
+            let error_msg = crate::validation::format_dependency_error("arduino-cli", &e, true);
+            eprintln!("{}", error_msg);
+            return Err(format!("arduino-cli validation failed: {}", e));
+        }
+    }
 
     *cached_path = Some(absolute_path.clone());
     Ok(absolute_path)
@@ -319,9 +380,15 @@ pub fn get_clangd_binary(
         eprintln!("Arduino: clangd not found, downloading...");
     }
 
-    let release = if let Some(version) = version_to_use {
+    let release = if let Some(ref version) = version_to_use {
         // Download specific version
-        fetch_specific_version_clangd(&version)?
+        fetch_specific_version_clangd(version).map_err(|e| {
+            crate::validation::format_dependency_error(
+                "clangd",
+                &format!("Failed to fetch version {}: {}", version, e),
+                false,
+            )
+        })?
     } else {
         // Download latest version
         zed::latest_github_release(
@@ -330,7 +397,14 @@ pub fn get_clangd_binary(
                 require_assets: true,
                 pre_release: false,
             },
-        )?
+        )
+        .map_err(|e| {
+            crate::validation::format_dependency_error(
+                "clangd",
+                &format!("Failed to fetch latest release: {}", e),
+                false,
+            )
+        })?
     };
 
     let (platform, arch) = zed::current_platform();
@@ -377,7 +451,13 @@ pub fn get_clangd_binary(
             &version_dir,
             zed::DownloadedFileType::Zip,
         )
-        .map_err(|e| format!("failed to download clangd: {e}"))?;
+        .map_err(|e| {
+            crate::validation::format_dependency_error(
+                "clangd",
+                &format!("Download failed: {}", e),
+                false,
+            )
+        })?;
 
         zed::make_file_executable(&binary_path)?;
 
@@ -388,6 +468,18 @@ pub fn get_clangd_binary(
     let work_dir =
         std::env::current_dir().map_err(|e| format!("failed to get work directory: {e}"))?;
     let absolute_path = work_dir.join(&binary_path).to_string_lossy().to_string();
+
+    // Validate the downloaded binary
+    match crate::validation::validate_clangd(&absolute_path) {
+        Ok(version_info) => {
+            eprintln!("Arduino: clangd validated: {}", version_info);
+        }
+        Err(e) => {
+            let error_msg = crate::validation::format_dependency_error("clangd", &e, false);
+            eprintln!("{}", error_msg);
+            return Err(format!("clangd validation failed: {}", e));
+        }
+    }
 
     *cached_path = Some(absolute_path.clone());
     Ok(absolute_path)

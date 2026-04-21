@@ -1,9 +1,7 @@
-If a task is completed, remove it.
+If a task is completed, remove it from the list.
 
 # TODO
 
-- Improve error messages when dependencies missing
 - Add library path configuration support
-
-
-# In progress
+- Check if unimplemented features will crash the extension.
+- Revise readme

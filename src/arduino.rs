@@ -4,6 +4,7 @@ mod downloads;
 mod metadata;
 mod setup;
 mod utils;
+mod validation;
 
 use std::collections::HashMap;
 use zed_extension_api::{self as zed, serde_json, settings::LspSettings, LanguageServerId, Result};
@@ -134,6 +135,9 @@ impl zed::Extension for ArduinoExtension {
         // Auto-generate .zed/tasks.json if it doesn't exist and feature is enabled
         setup::auto_generate_tasks(worktree, &self.installation_state).ok();
 
+        // Check dependencies and report any issues
+        validation::report_dependencies(worktree);
+
         // Get args and env from LSP settings first
         let mut args: Vec<String> = Vec::new();
         let mut env: HashMap<String, String> = HashMap::new();
@@ -185,10 +189,10 @@ impl zed::Extension for ArduinoExtension {
                         args.push(clangd_path);
                     }
                     Err(e) => {
-                        eprintln!(
-                            "Arduino: Failed to get clangd: {}. IntelliSense may be limited.",
-                            e
-                        );
+                        // Non-critical - extension can work without clangd but with limited IntelliSense
+                        eprintln!("\n{}", e);
+                        eprintln!("\nArduino Extension will continue without clangd. IntelliSense features will be limited.");
+                        eprintln!("Basic syntax highlighting and compilation will still work.\n");
                     }
                 }
             }
@@ -205,24 +209,32 @@ impl zed::Extension for ArduinoExtension {
                 args.push(cli_path);
             } else {
                 // If not in PATH, try downloading it
-                if let Ok(cli_path) =
-                    downloads::get_arduino_cli_binary(worktree, &mut self.cached_arduino_cli_path)
+                match downloads::get_arduino_cli_binary(worktree, &mut self.cached_arduino_cli_path)
                 {
-                    // We downloaded it - use isolated data directory
-                    if let Some(version) = crate::utils::extract_arduino_cli_version(&cli_path) {
-                        self.installation_state
-                            .record_arduino_cli_download(&version, cli_path.clone());
-                    } else {
-                        self.installation_state
-                            .record_arduino_cli_download("unknown", cli_path.clone());
+                    Ok(cli_path) => {
+                        // We downloaded it - use isolated data directory
+                        if let Some(version) = crate::utils::extract_arduino_cli_version(&cli_path)
+                        {
+                            self.installation_state
+                                .record_arduino_cli_download(&version, cli_path.clone());
+                        } else {
+                            self.installation_state
+                                .record_arduino_cli_download("unknown", cli_path.clone());
+                        }
+                        self.installation_state.save().ok();
+
+                        // Create isolated config pointing to extension directory
+                        setup::create_isolated_arduino_config(&self.installation_state).ok();
+
+                        args.push("-cli".to_string());
+                        args.push(cli_path);
                     }
-                    self.installation_state.save().ok();
-
-                    // Create isolated config pointing to extension directory
-                    setup::create_isolated_arduino_config(&self.installation_state).ok();
-
-                    args.push("-cli".to_string());
-                    args.push(cli_path);
+                    Err(e) => {
+                        // Critical error - arduino-cli is required
+                        eprintln!("\n{}", e);
+                        eprintln!("\nArduino Extension cannot start without arduino-cli.");
+                        return Err("arduino-cli is required but could not be obtained. See error message above for recovery options.".to_string());
+                    }
                 }
             }
         }
