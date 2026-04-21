@@ -82,14 +82,16 @@ arduino-cli board list                 # Detect connected board
 
 ## Using a Custom Language Server
 
-To use a custom or forked Arduino Language Server:
+### Option 1: GitHub Fork
+
+To use a forked Arduino Language Server hosted on GitHub:
 
 ```json
 {
   "lsp": {
     "arduino": {
       "settings": {
-        "languageServerRepo": "yourusername/your-arduino-language-server"
+        "githubRepo": "yourusername/your-arduino-language-server"
       },
       "binary": {
         "arguments": ["-fqbn", "esp32:esp32:esp32s3"]
@@ -99,7 +101,28 @@ To use a custom or forked Arduino Language Server:
 }
 ```
 
-The extension will download releases from the specified GitHub repository instead of the official Arduino one.
+The extension will download releases from the specified GitHub repository (format: `"owner/repo"`).
+
+**Note:** Only GitHub is supported for automatic downloads. For GitLab, Gitea, or other providers, use Option 2 below.
+
+### Option 2: Manual Path
+
+To use a manually downloaded language server from any source:
+
+```json
+{
+  "lsp": {
+    "arduino": {
+      "binary": {
+        "path": "/absolute/path/to/arduino-language-server",
+        "arguments": ["-fqbn", "esp32:esp32:esp32s3"]
+      }
+    }
+  }
+}
+```
+
+This skips automatic downloads entirely and uses your specified binary.
 
 ## Full Automation (Optional)
 
@@ -131,11 +154,13 @@ All settings are optional and can be added to `.zed/settings.json`:
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `autoGenerateProjectSettings` | `true` | Auto-create `.zed/settings.json` template |
-| `languageServerRepo` | `arduino/arduino-language-server` | Custom GitHub repo for language server |
+| `githubRepo` | `arduino/arduino-language-server` | Custom GitHub repo (format: `owner/repo`) |
 | `autoDownloadCli` | `true` | Auto-download arduino-cli from GitHub |
 | `autoCreateConfig` | `false` | Auto-create `arduino-cli.yaml` if missing |
 | `autoInstallCore` | `false` | Auto-install board core for your FQBN |
 | `autoGenerateCompileDb` | `false` | Auto-generate `compile_commands.json` |
+
+**Alternative:** Use `binary.path` in LSP settings to specify an absolute path to a manually downloaded language server, bypassing automatic downloads.
 
 ### Disable Auto-Generation
 
@@ -205,6 +230,8 @@ arduino-cli compile --fqbn YOUR:BOARD:FQBN --only-compilation-database .
 
 **Custom language server not downloading?**
 - Verify the GitHub repo exists and has releases with Arduino Language Server assets
+- Ensure you're using the format `"owner/repo"`, not a full URL
+- For non-GitHub providers, use `binary.path` instead
 - Check Zed logs: `Cmd+Shift+P` → "zed: open log"
 
 **Check logs:**

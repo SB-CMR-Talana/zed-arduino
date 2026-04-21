@@ -1,5 +1,5 @@
 use std::fs;
-use zed_extension_api::{self as zed, settings::LspSettings, LanguageServerId, Result};
+use zed_extension_api::{self as zed, LanguageServerId, Result};
 
 use crate::utils::platform_strings;
 
@@ -24,16 +24,9 @@ pub fn get_language_server_binary(
         &zed::LanguageServerInstallationStatus::CheckingForUpdate,
     );
 
-    // Get custom language server repo from settings, default to official repo
-    let repo = LspSettings::for_worktree("arduino", worktree)
-        .ok()
-        .and_then(|s| s.settings)
-        .and_then(|s| {
-            s.get("languageServerRepo")
-                .and_then(|v| v.as_str())
-                .map(String::from)
-        })
-        .unwrap_or_else(|| "arduino/arduino-language-server".to_string());
+    // Get custom GitHub repo from settings (format: "owner/repo"), default to official repo
+    let repo =
+        crate::utils::get_string_setting(worktree, "githubRepo", "arduino/arduino-language-server");
 
     let release = zed::latest_github_release(
         &repo,

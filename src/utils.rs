@@ -62,9 +62,19 @@ pub fn auto_generate_project_settings(worktree: &zed::Worktree) -> Result<()> {
     let default_settings = r#"{
   "lsp": {
     "arduino": {
+      "binary": {
+        "arguments": [
+          "-fqbn",
+          "REPLACE_WITH_YOUR_BOARD_FQBN"
+        ]
+      },
       "settings": {
         "autoGenerateProjectSettings": true,
-        "languageServerRepo": "arduino/arduino-language-server"
+        "githubRepo": "arduino/arduino-language-server",
+        "autoDownloadCli": true,
+        "autoCreateConfig": false,
+        "autoInstallCore": false,
+        "autoGenerateCompileDb": false
       }
     }
   },
