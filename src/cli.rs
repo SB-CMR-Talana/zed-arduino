@@ -1,5 +1,5 @@
 use std::process::Command;
-use zed_extension_api::{self as zed, Result};
+use zed_extension_api::{self as zed, serde_json, Result};
 
 /// Extract core ID from FQBN (e.g., "esp32:esp32" from "esp32:esp32:esp32s3")
 pub fn extract_core_id(fqbn: &str) -> Option<String> {
@@ -100,4 +100,64 @@ pub fn generate_compilation_database(
     }
 
     Ok(())
+}
+
+/// Detect connected Arduino board and return (port, fqbn) if found
+/// If multiple boards are detected, returns the first one and logs a warning
+pub fn detect_connected_board(cli_path: &str) -> Option<(String, String)> {
+    let output = Command::new(cli_path)
+        .arg("board")
+        .arg("list")
+        .arg("--format")
+        .arg("json")
+        .output();
+
+    if let Ok(output) = output {
+        if output.status.success() {
+            if let Ok(stdout) = String::from_utf8(output.stdout) {
+                // Parse JSON output to extract port and FQBN
+                // JSON format: [{"matching_boards":[{"fqbn":"..."}],"port":{"address":"..."}}]
+                if let Ok(boards) = serde_json::from_str::<serde_json::Value>(&stdout) {
+                    if let Some(array) = boards.as_array() {
+                        // Collect all detected boards
+                        let mut detected_boards: Vec<(String, String)> = Vec::new();
+
+                        for board in array {
+                            if let (Some(port_obj), Some(boards_array)) = (
+                                board.get("port"),
+                                board.get("matching_boards").and_then(|b| b.as_array()),
+                            ) {
+                                if let (Some(port_addr), Some(fqbn)) = (
+                                    port_obj.get("address").and_then(|a| a.as_str()),
+                                    boards_array
+                                        .first()
+                                        .and_then(|b| b.get("fqbn"))
+                                        .and_then(|f| f.as_str()),
+                                ) {
+                                    detected_boards.push((port_addr.to_string(), fqbn.to_string()));
+                                }
+                            }
+                        }
+
+                        // Return first board, with warning if multiple found
+                        if let Some(first_board) = detected_boards.first() {
+                            if detected_boards.len() > 1 {
+                                eprintln!("Arduino: Warning - Multiple boards detected:");
+                                for (port, fqbn) in &detected_boards {
+                                    eprintln!("  - {} on {}", fqbn, port);
+                                }
+                                eprintln!(
+                                    "Arduino: Using first board: {} on {}",
+                                    first_board.1, first_board.0
+                                );
+                                eprintln!("Arduino: To use a different board, edit .zed/settings.json manually");
+                            }
+                            return Some(first_board.clone());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    None
 }

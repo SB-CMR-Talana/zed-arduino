@@ -9,6 +9,7 @@ Full Arduino development support in Zed with IntelliSense, diagnostics, and synt
 - 🔍 Real-time diagnostics and error checking
 - 🔧 Auto-downloads Arduino Language Server and arduino-cli
 - ⚡ Zero-config setup - auto-generates project settings
+- 🔌 Auto-detects connected boards and configures FQBN and port
 
 ## Quick Start
 
@@ -26,7 +27,7 @@ zed .
 
 ### 3. Configure Your Board & Port
 
-The extension will automatically create `.zed/settings.json` in your project. Open it and configure your board's FQBN and serial port:
+The extension will automatically create `.zed/settings.json` in your project with **auto-detected values** if you have a board connected. If no board is detected, placeholders will be used - just edit them:
 
 ```json
 {
@@ -60,14 +61,16 @@ Edit the FQBN and port in the settings:
         ]
       },
       "settings": {
-        "port": "/dev/ttyUSB0"
+        "port": "REPLACE_WITH_YOUR_PORT"
       }
     }
   }
 }
 ```
 
-**Finding your port:** Run the **Arduino: List Boards & Ports** task (see [Running Arduino Tasks](#running-arduino-tasks) below).
+**Note:** If you had a board connected when opening the project, the FQBN and port should already be set correctly! Otherwise, run the **Arduino: List Boards & Ports** task (see [Running Arduino Tasks](#running-arduino-tasks) below) to find your values.
+
+**Multiple Boards:** If multiple boards are connected, the extension will use the first detected board and display a warning with all detected boards. Edit `.zed/settings.json` manually if you need to use a different board.
 
 **That's it!** Open your `.ino` file and start coding.
 
@@ -103,7 +106,7 @@ Available tasks:
 
 **Both FQBN and port are automatically extracted from `.zed/settings.json`** - everything in one place!
 
-Configure your board and port in `.zed/settings.json`:
+If you need to change your board or port (or if auto-detection didn't find your board), edit `.zed/settings.json`:
 
 ```json
 {
@@ -113,7 +116,7 @@ Configure your board and port in `.zed/settings.json`:
         "arguments": ["-fqbn", "esp32:esp32:esp32s3"]
       },
       "settings": {
-        "port": "/dev/ttyUSB0"
+        "port": "REPLACE_WITH_YOUR_PORT"
       }
     }
   }
@@ -128,6 +131,9 @@ Configure your board and port in `.zed/settings.json`:
 - Linux: `/dev/ttyUSB0`, `/dev/ttyACM0`
 - macOS: `/dev/cu.usbserial-*`, `/dev/cu.usbmodem-*`
 - Windows: `COM3`, `COM4`, etc.
+
+**Customizing Terminal Output:**  
+By default, most tasks open in a terminal panel for better visibility. If you prefer inline output instead, edit `.zed/tasks.json` and change `"use_new_terminal": true` to `false` for any task.
 
 ## Using a Custom Language Server
 

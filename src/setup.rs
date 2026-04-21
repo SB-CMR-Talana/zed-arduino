@@ -23,35 +23,61 @@ pub fn auto_generate_project_settings(worktree: &zed::Worktree) -> Result<()> {
     // Create .zed directory if it doesn't exist
     fs::create_dir_all(&zed_dir).map_err(|e| format!("failed to create .zed directory: {}", e))?;
 
-    // Default settings template
-    let default_settings = r#"{
-  "lsp": {
-    "arduino": {
-      "binary": {
+    // Try to detect connected board and use its values as defaults
+    let (default_fqbn, default_port) = if let Some(cli_path) = worktree.which("arduino-cli") {
+        if let Some((port, fqbn)) = crate::cli::detect_connected_board(&cli_path) {
+            eprintln!("Arduino: Detected board {} on port {}", fqbn, port);
+            (fqbn, port)
+        } else {
+            (
+                "REPLACE_WITH_YOUR_BOARD_FQBN".to_string(),
+                "REPLACE_WITH_YOUR_PORT".to_string(),
+            )
+        }
+    } else {
+        (
+            "REPLACE_WITH_YOUR_BOARD_FQBN".to_string(),
+            "REPLACE_WITH_YOUR_PORT".to_string(),
+        )
+    };
+
+    // Generate settings with detected or default values
+    let default_settings = format!(
+        r#"{{
+  // For documentation and all configuration options, see the extension README:
+  //   Linux: ~/.local/share/zed/extensions/arduino/README.md
+  //   macOS: ~/Library/Application Support/Zed/extensions/arduino/README.md
+  //   Windows: %APPDATA%\Zed\extensions\arduino\README.md
+  // Or online: https://github.com/itzderock/zed-arduino/blob/main/README.md
+  "lsp": {{
+    "arduino": {{
+      "binary": {{
         "arguments": [
           "-fqbn",
-          "REPLACE_WITH_YOUR_BOARD_FQBN"
+          "{}"
         ]
-      },
-      "settings": {
+      }},
+      "settings": {{
         "autoGenerateProjectSettings": true,
         "githubRepo": "arduino/arduino-language-server",
         "autoDownloadCli": true,
         "autoCreateConfig": false,
         "autoInstallCore": false,
         "autoGenerateCompileDb": false,
-        "port": "/dev/ttyUSB0"
-      }
-    }
-  },
-  "languages": {
-    "Arduino": {
+        "port": "{}"
+      }}
+    }}
+  }},
+  "languages": {{
+    "Arduino": {{
       "format_on_save": "off",
       "tab_size": 2
-    }
-  }
-}
-"#;
+    }}
+  }}
+}}
+"#,
+        default_fqbn, default_port
+    );
 
     fs::write(&settings_file, default_settings)
         .map_err(|e| format!("failed to write .zed/settings.json: {}", e))?;
@@ -81,26 +107,31 @@ pub fn auto_generate_tasks(worktree: &zed::Worktree) -> Result<()> {
     // Default tasks template
     // Note: Tasks extract FQBN from .zed/settings.json automatically
     let default_tasks = r#"{
+  // For documentation and customization options, see the extension README:
+  //   Linux: ~/.local/share/zed/extensions/arduino/README.md
+  //   macOS: ~/Library/Application Support/Zed/extensions/arduino/README.md
+  //   Windows: %APPDATA%\Zed\extensions\arduino\README.md
+  // Or online: https://github.com/SB-CMR-Talana/zed-arduino
   "tasks": [
     {
       "label": "Arduino: List Boards & Ports",
       "command": "arduino-cli board list",
-      "use_new_terminal": false
+      "use_new_terminal": true
     },
     {
       "label": "Arduino: Compile",
       "command": "FQBN=$(grep -A 1 '\"-fqbn\"' .zed/settings.json | tail -1 | grep -o '\"[^\"]*\"' | tr -d '\"') && arduino-cli compile -b \"$FQBN\" .",
-      "use_new_terminal": false
+      "use_new_terminal": true
     },
     {
       "label": "Arduino: Upload",
       "command": "FQBN=$(grep -A 1 '\"-fqbn\"' .zed/settings.json | tail -1 | grep -o '\"[^\"]*\"' | tr -d '\"') && PORT=$(grep '\"port\"' .zed/settings.json | grep -o '\"[^\"]*\"' | tail -1 | tr -d '\"') && arduino-cli upload -p \"$PORT\" -b \"$FQBN\" .",
-      "use_new_terminal": false
+      "use_new_terminal": true
     },
     {
       "label": "Arduino: Compile & Upload",
       "command": "FQBN=$(grep -A 1 '\"-fqbn\"' .zed/settings.json | tail -1 | grep -o '\"[^\"]*\"' | tr -d '\"') && PORT=$(grep '\"port\"' .zed/settings.json | grep -o '\"[^\"]*\"' | tail -1 | tr -d '\"') && arduino-cli compile -b \"$FQBN\" . && arduino-cli upload -p \"$PORT\" -b \"$FQBN\" .",
-      "use_new_terminal": false
+      "use_new_terminal": true
     },
     {
       "label": "Arduino: Monitor Serial",
