@@ -39,7 +39,8 @@ pub fn auto_generate_project_settings(worktree: &zed::Worktree) -> Result<()> {
         "autoDownloadCli": true,
         "autoCreateConfig": false,
         "autoInstallCore": false,
-        "autoGenerateCompileDb": false
+        "autoGenerateCompileDb": false,
+        "port": "/dev/ttyUSB0"
       }
     }
   },
@@ -78,26 +79,32 @@ pub fn auto_generate_tasks(worktree: &zed::Worktree) -> Result<()> {
     fs::create_dir_all(&zed_dir).map_err(|e| format!("failed to create .zed directory: {}", e))?;
 
     // Default tasks template
+    // Note: Tasks extract FQBN from .zed/settings.json automatically
     let default_tasks = r#"{
   "tasks": [
     {
+      "label": "Arduino: List Boards & Ports",
+      "command": "arduino-cli board list",
+      "use_new_terminal": false
+    },
+    {
       "label": "Arduino: Compile",
-      "command": "arduino-cli compile -b $ZED_ARDUINO_FQBN .",
+      "command": "FQBN=$(grep -A 1 '\"-fqbn\"' .zed/settings.json | tail -1 | grep -o '\"[^\"]*\"' | tr -d '\"') && arduino-cli compile -b \"$FQBN\" .",
       "use_new_terminal": false
     },
     {
       "label": "Arduino: Upload",
-      "command": "arduino-cli upload -p $ZED_ARDUINO_PORT -b $ZED_ARDUINO_FQBN .",
+      "command": "FQBN=$(grep -A 1 '\"-fqbn\"' .zed/settings.json | tail -1 | grep -o '\"[^\"]*\"' | tr -d '\"') && PORT=$(grep '\"port\"' .zed/settings.json | grep -o '\"[^\"]*\"' | tail -1 | tr -d '\"') && arduino-cli upload -p \"$PORT\" -b \"$FQBN\" .",
       "use_new_terminal": false
     },
     {
       "label": "Arduino: Compile & Upload",
-      "command": "arduino-cli compile -b $ZED_ARDUINO_FQBN . && arduino-cli upload -p $ZED_ARDUINO_PORT -b $ZED_ARDUINO_FQBN .",
+      "command": "FQBN=$(grep -A 1 '\"-fqbn\"' .zed/settings.json | tail -1 | grep -o '\"[^\"]*\"' | tr -d '\"') && PORT=$(grep '\"port\"' .zed/settings.json | grep -o '\"[^\"]*\"' | tail -1 | tr -d '\"') && arduino-cli compile -b \"$FQBN\" . && arduino-cli upload -p \"$PORT\" -b \"$FQBN\" .",
       "use_new_terminal": false
     },
     {
       "label": "Arduino: Monitor Serial",
-      "command": "arduino-cli monitor -p $ZED_ARDUINO_PORT",
+      "command": "PORT=$(grep '\"port\"' .zed/settings.json | grep -o '\"[^\"]*\"' | tail -1 | tr -d '\"') && arduino-cli monitor -p \"$PORT\"",
       "use_new_terminal": true
     },
     {
@@ -105,11 +112,7 @@ pub fn auto_generate_tasks(worktree: &zed::Worktree) -> Result<()> {
       "command": "rm -rf build",
       "use_new_terminal": false
     }
-  ],
-  "env": {
-    "ZED_ARDUINO_FQBN": "REPLACE_WITH_YOUR_BOARD_FQBN",
-    "ZED_ARDUINO_PORT": "/dev/ttyUSB0"
-  }
+  ]
 }
 "#;
 

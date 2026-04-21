@@ -24,9 +24,9 @@ cd your-arduino-project
 zed .
 ```
 
-### 3. Configure Your Board
+### 3. Configure Your Board & Port
 
-The extension will automatically create `.zed/settings.json` in your project. Open it and replace the placeholder with your board's FQBN:
+The extension will automatically create `.zed/settings.json` in your project. Open it and configure your board's FQBN and serial port:
 
 ```json
 {
@@ -47,7 +47,7 @@ The extension will automatically create `.zed/settings.json` in your project. Op
 }
 ```
 
-Edit the FQBN in the language server arguments:
+Edit the FQBN and port in the settings:
 
 ```json
 {
@@ -58,11 +58,16 @@ Edit the FQBN in the language server arguments:
           "-fqbn",
           "esp32:esp32:esp32s3"
         ]
+      },
+      "settings": {
+        "port": "/dev/ttyUSB0"
       }
     }
   }
 }
 ```
+
+**Finding your port:** Run the **Arduino: List Boards & Ports** task (see [Running Arduino Tasks](#running-arduino-tasks) below).
 
 **That's it!** Open your `.ino` file and start coding.
 
@@ -87,6 +92,7 @@ The extension auto-generates `.zed/tasks.json` with common Arduino commands. Acc
 **Command Palette** → `Cmd+Shift+P` / `Ctrl+Shift+P` → `tasks: spawn`
 
 Available tasks:
+- **Arduino: List Boards & Ports** - Detect connected boards and their ports
 - **Arduino: Compile** - Verify your sketch compiles
 - **Arduino: Upload** - Upload sketch to your board
 - **Arduino: Compile & Upload** - Compile then upload in one step
@@ -95,22 +101,28 @@ Available tasks:
 
 ### Configure Tasks
 
-Edit `.zed/tasks.json` to set your board and port:
+**Both FQBN and port are automatically extracted from `.zed/settings.json`** - everything in one place!
+
+Configure your board and port in `.zed/settings.json`:
 
 ```json
 {
-  "env": {
-    "ZED_ARDUINO_FQBN": "esp32:esp32:esp32s3",
-    "ZED_ARDUINO_PORT": "/dev/ttyUSB0"
+  "lsp": {
+    "arduino": {
+      "binary": {
+        "arguments": ["-fqbn", "esp32:esp32:esp32s3"]
+      },
+      "settings": {
+        "port": "/dev/ttyUSB0"
+      }
+    }
   }
 }
 ```
 
 **Finding your port:**
-```bash
-arduino-cli board list                 # Shows connected boards and ports
-ls /dev/tty* | grep -i usb            # Linux/macOS
-```
+1. Run the **Arduino: List Boards & Ports** task (`Cmd+Shift+P` → `tasks: spawn`)
+2. Or manually: `arduino-cli board list`
 
 **Common ports:**
 - Linux: `/dev/ttyUSB0`, `/dev/ttyACM0`
