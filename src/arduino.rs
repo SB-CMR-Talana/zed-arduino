@@ -1,6 +1,7 @@
 mod cli;
 mod detection;
 mod downloads;
+mod setup;
 mod utils;
 
 use std::collections::HashMap;
@@ -92,7 +93,10 @@ impl zed::Extension for ArduinoExtension {
         worktree: &zed::Worktree,
     ) -> Result<zed::Command> {
         // Auto-generate .zed/settings.json if it doesn't exist and feature is enabled
-        utils::auto_generate_project_settings(worktree).ok();
+        setup::auto_generate_project_settings(worktree).ok();
+
+        // Auto-generate .zed/tasks.json if it doesn't exist and feature is enabled
+        setup::auto_generate_tasks(worktree).ok();
 
         // Get args and env from LSP settings first
         let mut args: Vec<String> = Vec::new();

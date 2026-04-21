@@ -80,6 +80,43 @@ arduino-cli board list                 # Detect connected board
 - ESP32-S3: `esp32:esp32:esp32s3`
 - ESP8266: `esp8266:esp8266:generic`
 
+## Running Arduino Tasks
+
+The extension auto-generates `.zed/tasks.json` with common Arduino commands. Access them via:
+
+**Command Palette** → `Cmd+Shift+P` / `Ctrl+Shift+P` → `tasks: spawn`
+
+Available tasks:
+- **Arduino: Compile** - Verify your sketch compiles
+- **Arduino: Upload** - Upload sketch to your board
+- **Arduino: Compile & Upload** - Compile then upload in one step
+- **Arduino: Monitor Serial** - Open serial monitor
+- **Arduino: Clean Build** - Remove build artifacts
+
+### Configure Tasks
+
+Edit `.zed/tasks.json` to set your board and port:
+
+```json
+{
+  "env": {
+    "ZED_ARDUINO_FQBN": "esp32:esp32:esp32s3",
+    "ZED_ARDUINO_PORT": "/dev/ttyUSB0"
+  }
+}
+```
+
+**Finding your port:**
+```bash
+arduino-cli board list                 # Shows connected boards and ports
+ls /dev/tty* | grep -i usb            # Linux/macOS
+```
+
+**Common ports:**
+- Linux: `/dev/ttyUSB0`, `/dev/ttyACM0`
+- macOS: `/dev/cu.usbserial-*`, `/dev/cu.usbmodem-*`
+- Windows: `COM3`, `COM4`, etc.
+
 ## Using a Custom Language Server
 
 ### Option 1: GitHub Fork

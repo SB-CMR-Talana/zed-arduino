@@ -1,6 +1,4 @@
-use std::fs;
-use std::path::Path;
-use zed_extension_api::{self as zed, settings::LspSettings, Result};
+use zed_extension_api::{self as zed, settings::LspSettings};
 
 /// Convert platform/arch to strings for GitHub release asset names
 pub fn platform_strings(
@@ -53,61 +51,6 @@ pub fn get_home(worktree: &zed::Worktree) -> Option<String> {
         .get("HOME")
         .or_else(|| shell_env.get("USERPROFILE"))
         .cloned()
-}
-
-/// Auto-generate .zed/settings.json with safe defaults if it doesn't exist
-/// Controlled by autoGenerateProjectSettings setting (default true)
-pub fn auto_generate_project_settings(worktree: &zed::Worktree) -> Result<()> {
-    // Check if feature is enabled
-    if !get_setting(worktree, "autoGenerateProjectSettings", true) {
-        return Ok(());
-    }
-
-    let worktree_root = worktree.root_path();
-    let zed_dir = format!("{}/.zed", worktree_root);
-    let settings_file = format!("{}/settings.json", zed_dir);
-
-    // If settings.json already exists, don't overwrite it
-    if Path::new(&settings_file).exists() {
-        return Ok(());
-    }
-
-    // Create .zed directory if it doesn't exist
-    fs::create_dir_all(&zed_dir).map_err(|e| format!("failed to create .zed directory: {}", e))?;
-
-    // Default settings template
-    let default_settings = r#"{
-  "lsp": {
-    "arduino": {
-      "binary": {
-        "arguments": [
-          "-fqbn",
-          "REPLACE_WITH_YOUR_BOARD_FQBN"
-        ]
-      },
-      "settings": {
-        "autoGenerateProjectSettings": true,
-        "githubRepo": "arduino/arduino-language-server",
-        "autoDownloadCli": true,
-        "autoCreateConfig": false,
-        "autoInstallCore": false,
-        "autoGenerateCompileDb": false
-      }
-    }
-  },
-  "languages": {
-    "Arduino": {
-      "format_on_save": "off",
-      "tab_size": 2
-    }
-  }
-}
-"#;
-
-    fs::write(&settings_file, default_settings)
-        .map_err(|e| format!("failed to write .zed/settings.json: {}", e))?;
-
-    Ok(())
 }
 
 /// Check and report missing dependencies and configuration issues
