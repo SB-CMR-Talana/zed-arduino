@@ -23,6 +23,7 @@ pub fn get_language_server_binary(
         language_server_id,
         &zed::LanguageServerInstallationStatus::CheckingForUpdate,
     );
+    eprintln!("Arduino: Checking for Arduino Language Server updates...");
 
     // Get custom GitHub repo from settings (format: "owner/repo"), default to official repo
     let repo =
@@ -71,6 +72,10 @@ pub fn get_language_server_binary(
             language_server_id,
             &zed::LanguageServerInstallationStatus::Downloading,
         );
+        eprintln!(
+            "Arduino: Downloading Arduino Language Server v{}...",
+            release.version
+        );
 
         zed::download_file(
             &asset.download_url,
@@ -82,10 +87,21 @@ pub fn get_language_server_binary(
         cleanup_old_versions("arduino-language-server-", &version_dir)?;
 
         zed::make_file_executable(&final_binary_path)?;
+        eprintln!(
+            "Arduino: Language Server v{} installed successfully",
+            release.version
+        );
     }
 
-    *cached_path = Some(final_binary_path.clone());
-    Ok(final_binary_path)
+    let work_dir =
+        std::env::current_dir().map_err(|e| format!("failed to get work directory: {e}"))?;
+    let absolute_path = work_dir
+        .join(&final_binary_path)
+        .to_string_lossy()
+        .to_string();
+
+    *cached_path = Some(absolute_path.clone());
+    Ok(absolute_path)
 }
 
 /// Get arduino-cli binary (checks PATH, downloads from GitHub if needed)
@@ -102,6 +118,8 @@ pub fn get_arduino_cli_binary(
             return Ok(path.clone());
         }
     }
+
+    eprintln!("Arduino: arduino-cli not found in PATH, downloading...");
 
     let release = zed::latest_github_release(
         "arduino/arduino-cli",
@@ -145,12 +163,14 @@ pub fn get_arduino_cli_binary(
             _ => zed::DownloadedFileType::GzipTar,
         };
 
+        eprintln!("Arduino: Downloading arduino-cli v{}...", version);
         zed::download_file(&asset.download_url, &version_dir, file_type)
             .map_err(|e| format!("failed to download arduino-cli: {e}"))?;
 
         zed::make_file_executable(&binary_path)?;
 
         cleanup_old_versions("arduino-cli-", &version_dir)?;
+        eprintln!("Arduino: arduino-cli v{} installed successfully", version);
     }
 
     let work_dir =

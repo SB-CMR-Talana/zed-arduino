@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs};
+use std::fs;
 use zed_extension_api::{self as zed};
 
 /// Find clangd in PATH or Zed-managed locations (Flatpak, standard, macOS)
@@ -7,8 +7,7 @@ pub fn find_clangd(worktree: &zed::Worktree) -> Option<String> {
         return Some(path);
     }
 
-    let shell_env: HashMap<String, String> = worktree.shell_env().into_iter().collect();
-    if let Some(home) = shell_env.get("HOME") {
+    if let Some(home) = crate::utils::get_home(worktree) {
         // Flatpak location
         let flatpak_base = format!("{}/.var/app/dev.zed.Zed/data/zed/languages/clangd", home);
         if let Some(path) = search_clangd_in_directory(&flatpak_base) {
@@ -74,8 +73,7 @@ pub fn find_arduino_cli_config(worktree: &zed::Worktree) -> Option<String> {
         }
     }
 
-    let shell_env: HashMap<String, String> = worktree.shell_env().into_iter().collect();
-    if let Some(home) = shell_env.get("HOME") {
+    if let Some(home) = crate::utils::get_home(worktree) {
         let user_configs = vec![
             format!("{}/.arduino15/arduino-cli.yaml", home),
             format!("{}/.arduino-cli.yaml", home),

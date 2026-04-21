@@ -33,6 +33,43 @@ impl ArduinoExtension {
             &mut self.cached_language_server_path,
         )
     }
+
+    /// Setup automation features (auto-install core, auto-generate compile DB)
+    fn setup_automation(&mut self, args: &[String], worktree: &zed::Worktree) {
+        // Auto-install core if enabled and FQBN is specified
+        if utils::get_setting(worktree, "autoInstallCore", false) {
+            if let Some(fqbn) = utils::get_arg_value(args, "-fqbn") {
+                if let Some(core_id) = cli::extract_core_id(fqbn) {
+                    if let Some(cli_path) = utils::get_arg_value(args, "-cli") {
+                        if !cli::is_core_installed(cli_path, &core_id) {
+                            let config_path = utils::get_arg_value(args, "-cli-config");
+                            // Try to install core (ignore errors - not critical)
+                            if cli::install_core(cli_path, &core_id, config_path).is_ok() {
+                                eprintln!("Arduino: Installed core {} automatically", core_id);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Auto-generate compilation database if enabled
+        if utils::get_setting(worktree, "autoGenerateCompileDb", false)
+            && !detection::check_compilation_database(worktree)
+        {
+            if let Some(fqbn) = utils::get_arg_value(args, "-fqbn") {
+                if let Some(cli_path) = utils::get_arg_value(args, "-cli") {
+                    let config_path = utils::get_arg_value(args, "-cli-config");
+                    // Try to generate (ignore errors - not critical)
+                    if cli::generate_compilation_database(cli_path, fqbn, config_path, worktree)
+                        .is_ok()
+                    {
+                        eprintln!("Arduino: Generated compile_commands.json automatically");
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl zed::Extension for ArduinoExtension {
@@ -79,6 +116,11 @@ impl zed::Extension for ArduinoExtension {
             if let Some(clangd_path) = detection::find_clangd(worktree) {
                 args.push("-clangd".to_string());
                 args.push(clangd_path);
+            } else {
+                eprintln!(
+                    "Arduino: clangd not found. IntelliSense may be limited.\n\
+                     Install clangd or open a C++ file to trigger Zed's automatic installation."
+                );
             }
         }
 
@@ -114,58 +156,8 @@ impl zed::Extension for ArduinoExtension {
             }
         }
 
-        // Auto-install core if enabled and FQBN is specified
-        let user_specified_fqbn = args.iter().any(|arg| arg == "-fqbn");
-        if user_specified_fqbn && utils::get_setting(worktree, "autoInstallCore", false) {
-            if let Some(fqbn_idx) = args.iter().position(|a| a == "-fqbn") {
-                if let Some(fqbn) = args.get(fqbn_idx + 1) {
-                    if let Some(core_id) = cli::extract_core_id(fqbn) {
-                        let cli_path = args
-                            .iter()
-                            .position(|a| a == "-cli")
-                            .and_then(|idx| args.get(idx + 1).map(|s| s.as_str()));
-
-                        if let Some(cli) = cli_path {
-                            if !cli::is_core_installed(cli, &core_id) {
-                                let config_path = args
-                                    .iter()
-                                    .position(|a| a == "-cli-config")
-                                    .and_then(|idx| args.get(idx + 1).map(|s| s.as_str()));
-
-                                // Try to install core (ignore errors as they're not critical)
-                                cli::install_core(cli, &core_id, config_path).ok();
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Auto-generate compilation database if enabled
-        if user_specified_fqbn
-            && utils::get_setting(worktree, "autoGenerateCompileDb", false)
-            && !detection::check_compilation_database(worktree)
-        {
-            let fqbn = args
-                .iter()
-                .position(|a| a == "-fqbn")
-                .and_then(|idx| args.get(idx + 1).cloned());
-
-            let cli_path = args
-                .iter()
-                .position(|a| a == "-cli")
-                .and_then(|idx| args.get(idx + 1).cloned());
-
-            let config_path = args
-                .iter()
-                .position(|a| a == "-cli-config")
-                .and_then(|idx| args.get(idx + 1).map(|s| s.as_str()));
-
-            if let (Some(fqbn), Some(cli)) = (fqbn, cli_path) {
-                // Try to generate (ignore errors as they're not critical)
-                cli::generate_compilation_database(&cli, &fqbn, config_path, worktree).ok();
-            }
-        }
+        // Run automation features (auto-install cores, auto-generate compile DB)
+        self.setup_automation(&args, worktree);
 
         // Determine environment variables.
         // Always start with shell_env so PATH, HOME, etc. are present,
