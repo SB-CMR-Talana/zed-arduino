@@ -173,6 +173,11 @@ pub fn auto_generate_tasks(worktree: &zed::Worktree) -> Result<()> {
       "use_new_terminal": true
     }},
     {{
+      "label": "Arduino: Show Sketch Size",
+      "command": "FQBN=$(grep -A 1 '\"-fqbn\"' .zed/settings.json | tail -1 | grep -o '\"[^\"]*\"' | tr -d '\"') || {{ echo 'Error: FQBN not found in .zed/settings.json'; exit 1; }}; arduino-cli compile -b \"$FQBN\" .",
+      "use_new_terminal": true
+    }},
+    {{
       "label": "Arduino: Generate Compilation Database",
       "command": "FQBN=$(grep -A 1 '\"-fqbn\"' .zed/settings.json | tail -1 | grep -o '\"[^\"]*\"' | tr -d '\"') || {{ echo 'Error: FQBN not found in .zed/settings.json'; exit 1; }}; arduino-cli compile --fqbn \"$FQBN\" --only-compilation-database .",
       "use_new_terminal": true
@@ -203,6 +208,16 @@ pub fn auto_generate_tasks(worktree: &zed::Worktree) -> Result<()> {
       "use_new_terminal": true
     }},
     {{
+      "label": "Arduino: Upgrade All Cores",
+      "command": "arduino-cli core upgrade",
+      "use_new_terminal": true
+    }},
+    {{
+      "label": "Arduino: Board Details",
+      "command": "FQBN=$(grep -A 1 '\"-fqbn\"' .zed/settings.json | tail -1 | grep -o '\"[^\"]*\"' | tr -d '\"') || {{ echo 'Error: FQBN not found in .zed/settings.json'; exit 1; }}; arduino-cli board details -b \"$FQBN\"",
+      "use_new_terminal": true
+    }},
+    {{
       "label": "Arduino: Search Libraries",
       "command": "echo 'Enter search term:' && read SEARCH && arduino-cli lib search \"$SEARCH\"",
       "use_new_terminal": true
@@ -220,6 +235,21 @@ pub fn auto_generate_tasks(worktree: &zed::Worktree) -> Result<()> {
     {{
       "label": "Arduino: Uninstall Library",
       "command": "arduino-cli lib list && echo '' && echo 'Enter library name to uninstall:' && read LIBRARY && arduino-cli lib uninstall \"$LIBRARY\"",
+      "use_new_terminal": true
+    }},
+    {{
+      "label": "Arduino: Upgrade All Libraries",
+      "command": "arduino-cli lib upgrade",
+      "use_new_terminal": true
+    }},
+    {{
+      "label": "Arduino: Show Library Dependencies",
+      "command": "echo 'Enter library name:' && read LIBRARY && arduino-cli lib deps \"$LIBRARY\"",
+      "use_new_terminal": true
+    }},
+    {{
+      "label": "Arduino: List Examples",
+      "command": "arduino-cli lib examples",
       "use_new_terminal": true
     }},
     {{

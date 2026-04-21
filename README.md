@@ -103,6 +103,7 @@ Available tasks:
 - **Arduino: Upload (last compile)** - Upload previously compiled binary (auto-detects port if not configured)
 - **Arduino: Compile & Upload** - Compile then upload in one step
 - **Arduino: Monitor Serial** - Open serial monitor (auto-detects port if not configured)
+- **Arduino: Show Sketch Size** - Display compiled sketch size and memory usage
 
 **Project Management:**
 - **Arduino: Generate Compilation Database** - Create/update `compile_commands.json` for IntelliSense
@@ -114,12 +115,17 @@ Available tasks:
 - **Arduino: List Installed Cores** - Show installed board cores
 - **Arduino: Install Core** - Install a board core (shows installed cores first, then prompts)
 - **Arduino: Uninstall Core** - Remove an installed board core (shows installed cores first, then prompts)
+- **Arduino: Upgrade All Cores** - Update all installed board cores to latest versions
+- **Arduino: Board Details** - Show detailed information about the configured board
 
 **Library Management:**
 - **Arduino: Search Libraries** - Search for available libraries (interactive)
 - **Arduino: List Installed Libraries** - Show all installed libraries
 - **Arduino: Install Library** - Install a library (shows installed libraries first, then prompts)
 - **Arduino: Uninstall Library** - Remove an installed library (shows installed libraries first, then prompts)
+- **Arduino: Upgrade All Libraries** - Update all installed libraries to latest versions
+- **Arduino: Show Library Dependencies** - Display dependencies for a library (interactive)
+- **Arduino: List Examples** - Browse available example sketches from installed libraries
 
 ### Understanding Upload Tasks
 
