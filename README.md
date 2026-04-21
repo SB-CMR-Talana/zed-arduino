@@ -29,7 +29,7 @@ All settings go in `.zed/settings.json` under `lsp.arduino.settings`:
 |---------|---------|-------------|
 | port | | Serial port (e.g., /dev/ttyUSB0, COM3) |
 | libraryPaths | | Custom library directories (absolute or relative) |
-| githubRepo | "arduino/arduino-language-server" | Custom GitHub repo (owner/repo) |
+| githubRepo | "arduino/arduino-language-server" | GitHub repo (owner/repo) |
 | languageServerVersion | | Pin language server version (e.g., "0.7.5") |
 | arduinoCliVersion | | Pin arduino-cli version (e.g., "1.0.4") |
 | clangdVersion | | Pin clangd version (e.g., "18.1.3") |
@@ -46,26 +46,44 @@ All settings go in `.zed/settings.json` under `lsp.arduino.settings`:
   "lsp": {
     "arduino": {
       "binary": {
-        "arguments": ["-fqbn", "esp32:esp32:esp32s3"]
+        "arguments": ["-fqbn", "vendor:arch:board"]
       },
       "settings": {
-        "port": "/dev/ttyUSB0"
+        "port": "PORT"
       }
     }
   }
 }
 ```
 
-### Full Automation
+### Maximal Configuration
 
 ```jsonc
 {
   "lsp": {
     "arduino": {
       "binary": {
-        "arguments": ["-fqbn", "esp32:esp32:esp32s3"]
+        "path": "/absolute/path/to/arduino-language-server",  // Optional: override auto-download
+        "arguments": [
+          "-fqbn",
+          "vendor:arch:board",
+          "-cli", "/path/to/arduino-cli",      // Optional: manual CLI path
+          "-clangd", "/path/to/clangd"         // Optional: manual clangd path
+        ]
       },
       "settings": {
+        "port": "PORT",
+        "libraryPaths": [
+          "/path/to/libraries",
+          "./relative/path"
+        ],
+        "githubRepo": "owner/repo",
+        "languageServerVersion": "x.y.z",
+        "arduinoCliVersion": "x.y.z",
+        "clangdVersion": "x.y.z",
+        "autoGenerateProjectSettings": true,
+        "autoDownloadCli": true,
+        "autoCreateConfig": true,
         "autoInstallCore": true,
         "autoGenerateCompileDb": true
       }
@@ -73,74 +91,6 @@ All settings go in `.zed/settings.json` under `lsp.arduino.settings`:
   }
 }
 ```
-
-### Version Pinning
-
-```jsonc
-{
-  "lsp": {
-    "arduino": {
-      "binary": {
-        "arguments": ["-fqbn", "esp32:esp32:esp32s3"]
-      },
-      "settings": {
-        "languageServerVersion": "0.7.5",
-        "arduinoCliVersion": "1.0.4",
-        "clangdVersion": "18.1.3"
-      }
-    }
-  }
-}
-```
-
-### Custom Language Server
-
-**GitHub fork:**
-```jsonc
-{
-  "lsp": {
-    "arduino": {
-      "settings": {
-        "githubRepo": "yourusername/your-fork"
-      }
-    }
-  }
-}
-```
-
-**Manual path:**
-```jsonc
-{
-  "lsp": {
-    "arduino": {
-      "binary": {
-        "path": "/absolute/path/to/arduino-language-server",
-        "arguments": ["-fqbn", "esp32:esp32:esp32s3"]
-      }
-    }
-  }
-}
-```
-
-### Custom Library Paths
-
-```jsonc
-{
-  "lsp": {
-    "arduino": {
-      "settings": {
-        "libraryPaths": [
-          "/absolute/path/to/libs",
-          "./project-local-libs",
-          "../shared-libs"
-        ]
-      }
-    }
-  }
-}
-```
-
-**Note:** Project settings override global settings completely. To combine global + project libraries, list all paths in project settings.
 
 ## Available Tasks
 
