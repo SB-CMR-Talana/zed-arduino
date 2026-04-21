@@ -1309,13 +1309,159 @@ Total:         2129 lines (-28 lines from 2157)
 
 ---
 
+## 📝 Session 6: Documentation Refactoring for Power Users
+
+### **1. README Compression & Focus Shift**
+
+**Objective:** Transform verbose beginner-focused documentation into concise power-user reference
+
+**Changes:**
+- ✅ Reduced README from **985 lines to ~290 lines** (~70% reduction)
+- ✅ Removed step-by-step tutorials and verbose explanations
+- ✅ Removed repetitive examples and hand-holding content
+- ✅ Focused on quick reference and configuration documentation
+
+### **2. Configuration Reference Improvements**
+
+**Enhanced Settings Table:**
+- ✅ Removed redundant "Type" column (visible in editor autocomplete)
+- ✅ Cleaned up "Default" column (empty values shown as blank, not `""` or `[]`)
+- ✅ Condensed to 3 columns: Setting, Default, Description
+
+**Configuration Examples:**
+- ✅ Replaced 5+ separate examples with just 2: **Minimal** and **Maximal**
+- ✅ Maximal shows ALL possible settings in one comprehensive example
+- ✅ Made all examples generic (`vendor:arch:board`, `PORT`, `x.y.z`)
+- ✅ Removed platform-specific values (esp32, /dev/ttyUSB0, etc.)
+
+**Before (5 separate examples):**
+- Minimal Configuration
+- Full Automation
+- Version Pinning
+- Custom Language Server (GitHub fork)
+- Custom Language Server (Manual path)
+- Custom Library Paths
+
+**After (2 examples):**
+- Minimal Configuration (bare essentials)
+- Maximal Configuration (every possible setting with inline comments)
+
+### **3. Task Documentation Enhancement**
+
+**Added concise descriptions for all 23 tasks:**
+- **Core Workflow (7 tasks):** One-line description each
+- **Project Management (5 tasks):** Including extension status and cache clearing
+- **Board & Core Management (7 tasks):** Board/package operations
+- **Library Management (7 tasks):** Library lifecycle operations
+
+**Format:** `**Task Name** - Brief description`
+
+### **4. Feature Additions**
+
+**File Support:**
+- ✅ Added `.pde` file format support mention (legacy Arduino format)
+
+**Dependency Validation:**
+- ✅ Documented automatic dependency validation on startup
+- ✅ Added note about detailed recovery steps for missing tools
+
+### **5. Manual Installation Section**
+
+**Platform-Specific Examples:**
+- ✅ Added examples for 4 Linux package managers:
+  - Debian/Ubuntu (apt)
+  - Fedora (dnf)
+  - Arch (pacman)
+  - openSUSE (zypper)
+- ✅ Separated each platform into its own copyable code block
+- ✅ Removed inline comments from code blocks (moved to descriptions)
+
+### **6. Troubleshooting Refinement**
+
+**Streamlined to 3 core issues:**
+1. No IntelliSense → Generate compilation database
+2. Stale completions/errors → Clear clangd cache
+3. Package installation issues → Clear arduino-cli cache
+
+**Formatting:**
+- ✅ Added HTML `<br>` tags between sections for visual separation
+- ✅ Removed redundant "check logs" instruction (power users know this)
+
+### **7. Complete Uninstall Improvements**
+
+**Restructured to 3 steps:**
+1. Uninstall extension
+2. (Optional) Remove caches and data
+   - **Option A:** Use tasks (still work after uninstall - in project folder)
+   - **Option B:** Manual commands
+   - Combined arduino-cli, clangd, and .arduino15 removal into one step
+3. (Optional) Remove configuration files
+   - Project settings (.zed/settings.json)
+   - Project tasks (.zed/tasks.json)
+   - Global settings (Arduino LSP config)
+
+**Key Improvements:**
+- ✅ Clarified tasks work after extension removal
+- ✅ Combined all cache/data removal into single step with inline comments
+- ✅ Added reminder to clean up project and global configurations
+- ✅ Removed `-Force` flags from PowerShell commands for safety
+
+### **8. Visual Improvements**
+
+**HTML Break Tags:**
+- ✅ Added `<br>` tags between task categories for readability
+- ✅ Added `<br>` tags between platform installation sections
+- ✅ Added `<br>` tags between troubleshooting items
+- ✅ Improved visual hierarchy without adding excessive whitespace
+
+### **9. Removed Redundancies**
+
+**Power-user assumptions:**
+- ✅ Removed "Common FQBNs" section (users can run `arduino-cli board listall`)
+- ✅ Removed excessive cache behavior explanations
+- ✅ Removed language settings example (not extension-specific)
+- ✅ Consolidated verbose "Understanding..." sections
+
+### **10. Credits & Attribution**
+
+**Added:**
+- ✅ Original [zed-arduino extension](https://github.com/itzderock/zed-arduino) by Derock Xie
+- ✅ Proper attribution in Credits section
+
+### **Key Outcomes**
+
+**Documentation Philosophy Shift:**
+- **Before:** Tutorial-style, beginner-friendly, verbose
+- **After:** Reference manual, power-user focused, concise
+
+**Structure:**
+1. Features (quick scan)
+2. Quick Start (4 steps)
+3. Configuration Reference (comprehensive table + 2 examples)
+4. Available Tasks (23 tasks with descriptions)
+5. Code Snippets (categories only)
+6. Data Storage (what goes where)
+7. Manual Installation (all platforms)
+8. Troubleshooting (3 core issues)
+9. Complete Uninstall (3 steps with options)
+10. License & Credits
+
+**Statistics:**
+- README reduced by **~70%** (985 → 290 lines)
+- Configuration examples reduced from **5 to 2**
+- All 23 tasks now have descriptions
+- 4 Linux package managers documented
+- Maintains complete information density while improving scannability
+
+---
+
 ## 🎉 Summary
 
-This Arduino extension for Zed provides a **comprehensive, professional-grade development environment** for Arduino projects. Through smart auto-detection, extensive task coverage, 131 code snippets, intelligent installation tracking, complete toolchain version control, robust error handling, and custom library support, it delivers a seamless experience from project setup through deployment.
+This Arduino extension for Zed provides a **comprehensive, professional-grade development environment** for Arduino projects. Through smart auto-detection, extensive task coverage, 141 code snippets, intelligent installation tracking, complete toolchain version control, robust error handling, and custom library support, it delivers a seamless experience from project setup through deployment.
 
 **Key Achievements:**
-- ✅ **25 comprehensive tasks** covering the entire Arduino workflow (including cache management)
-- ✅ **131 insertable snippets** for rapid development across 7+ platforms
+- ✅ **23 comprehensive tasks** covering the entire Arduino workflow (including cache management)
+- ✅ **141 insertable snippets** for rapid development across 7+ platforms
 - ✅ **Complete version pinning** for Arduino Language Server, arduino-cli, and clangd
 - ✅ **Smart installation tracking** with metadata persistence in `installation_state.json`
 - ✅ **Intelligent data isolation** - extension-downloaded tools use isolated storage for clean uninstall
@@ -1333,5 +1479,5 @@ The codebase is clean, well-organized, and production-ready. The extension succe
 
 ---
 
-*Last Updated: Session 5 - Code quality improvements and refactoring*
+*Last Updated: Session 6 - Documentation refactoring for power users*
 *Repository: https://github.com/SB-CMR-Talana/zed-arduino*

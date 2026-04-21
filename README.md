@@ -232,27 +232,29 @@ Configure paths in `.zed/settings.json`:
 
 **No IntelliSense:**
 
-   ```bash
-   arduino-cli compile --fqbn YOUR:BOARD:FQBN --only-compilation-database .
-   ```
-   Restart Zed
+```bash
+arduino-cli compile --fqbn YOUR:BOARD:FQBN --only-compilation-database .
+```
+
+Restart Zed
 
 <br>
 
 **Stale completions/errors:**
 
-   Run task: **Arduino: Clear clangd Cache**, then restart Zed
+Run task: **Arduino: Clear clangd Cache**, then restart Zed
 
 <br>
 
 **Package installation issues:**
 
-   Run task: **Arduino: Clear arduino-cli Cache**, then retry
+Run task: **Arduino: Clear arduino-cli Cache**, then retry
 
 
 ## Complete Uninstall
 
 1. Uninstall extension in Zed
+
 2. (Optional) Remove caches and data:
    
    Use tasks: Open an Arduino project and run **Arduino: Clear clangd Cache** and **Arduino: Clear arduino-cli Cache**
@@ -278,8 +280,6 @@ Configure paths in `.zed/settings.json`:
    Remove-Item -Recurse ".cache\clangd"
    Remove-Item -Recurse "$env:USERPROFILE\.arduino15"  # If using system arduino-cli
    ```
-
-<br>
 
 3. (Optional) Remove Arduino configuration files:
    
