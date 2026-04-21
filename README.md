@@ -1,42 +1,235 @@
-# Arduino Language Support for Zed Editor
+# Arduino Language Server for Zed
 
-This plugin adds support for the [`arduino-language-server`](https://github.com/arduino/arduino-language-server) to the Zed Editor. It also enables syntax highlighting for `.ino` files.
+Full Arduino development support in Zed with IntelliSense, diagnostics, and syntax highlighting for `.ino` files.
 
-## Usage
+## Features
 
-Due to my non-extensive knowledge of how to make Zed extensions, this plugin is not fully plug and play.
+- 🎨 Syntax highlighting for Arduino sketches
+- 🧠 Code completion, hover info, and go-to-definition
+- 🔍 Real-time diagnostics and error checking
+- 🔧 Auto-downloads Arduino Language Server and arduino-cli
+- ⚡ Zero-config setup - auto-generates project settings
 
-While it will download the `arduino-language-server` for you, you will need the [`arduino-cli`](https://github.com/arduino/arduino-cli) installed and [`clangd`](https://github.com/clangd/clangd) installed and available to the Zed editor.
+## Quick Start
 
-Furthermore, you will need to specify your board's FQBN (Fully qualified board name). Example:
+### 1. Install Extension
 
-```jsonc
-// .zed/settings.json
+In Zed, open the command palette (`Cmd+Shift+P` / `Ctrl+Shift+P`):
+- "zed: extensions" → Install Dev Extension → Select this directory
+
+### 2. Open Your Arduino Project
+
+```bash
+cd your-arduino-project
+zed .
+```
+
+### 3. Configure Your Board
+
+The extension will automatically create `.zed/settings.json` in your project. Open it and replace the placeholder with your board's FQBN:
+
+```json
 {
-  // associate .ino with c++
-  "file_types": {
-    "Arduino": ["cpp", "h", "hpp"],
-  },
-
   "lsp": {
-    "arduino-language-server": {
-      "binary": {
-        "arguments": [
-          "-fqbn",
-          "esp32:esp32:esp32s3:CDCOnBoot=cdc,CPUFreq=240,DFUOnBoot=default,FlashMode=qio,FlashSize=16M,MSCOnBoot=default,PSRAM=opi,PartitionScheme=app3M_fat9M_16MB,USBMode=hwcdc",
-        ],
-      },
-    },
+    "arduino": {
+      "settings": {
+        "autoGenerateProjectSettings": true,
+        "languageServerRepo": "arduino/arduino-language-server"
+      }
+    }
   },
+  "languages": {
+    "Arduino": {
+      "language_servers": ["arduino"],
+      "format_on_save": "off"
+    }
+  }
 }
 ```
 
-## Installation
+Edit the FQBN in the language server arguments:
 
-Due to the hackyness of this plugin, I've not published it to the Zed plugin repository. To install you will need rustup or the rust toolchain installed. I've provided a devenv environment if you have devenv installed.
+```json
+{
+  "lsp": {
+    "arduino": {
+      "binary": {
+        "arguments": [
+          "-fqbn",
+          "esp32:esp32:esp32s3"
+        ]
+      }
+    }
+  }
+}
+```
 
-You can then manually install the plugin on the Zed extensions page by clicking the "Install Dev Extension" plugin and pointing it to this directory.
+**That's it!** Open your `.ino` file and start coding.
 
-## PRs and issues
+## Finding Your Board FQBN
 
-Open to improvements! If you think there's a better way to handle finding the FQBN, let me know!
+```bash
+arduino-cli board listall              # List all boards
+arduino-cli board list                 # Detect connected board
+```
+
+**Common FQBNs:**
+- Arduino Uno: `arduino:avr:uno`
+- Arduino Mega: `arduino:avr:mega`
+- ESP32: `esp32:esp32:esp32`
+- ESP32-S3: `esp32:esp32:esp32s3`
+- ESP8266: `esp8266:esp8266:generic`
+
+## Using a Custom Language Server
+
+To use a custom or forked Arduino Language Server:
+
+```json
+{
+  "lsp": {
+    "arduino": {
+      "settings": {
+        "languageServerRepo": "yourusername/your-arduino-language-server"
+      },
+      "binary": {
+        "arguments": ["-fqbn", "esp32:esp32:esp32s3"]
+      }
+    }
+  }
+}
+```
+
+The extension will download releases from the specified GitHub repository instead of the official Arduino one.
+
+## Full Automation (Optional)
+
+For a completely hands-off experience, enable automatic core installation and compilation database generation:
+
+```json
+{
+  "lsp": {
+    "arduino": {
+      "settings": {
+        "autoDownloadCli": true,
+        "autoInstallCore": true,
+        "autoGenerateCompileDb": true
+      },
+      "binary": {
+        "arguments": ["-fqbn", "esp32:esp32:esp32s3"]
+      }
+    }
+  }
+}
+```
+
+**Note:** `autoInstallCore` and `autoGenerateCompileDb` may download large files (100MB+) and take several minutes on first run.
+
+## Configuration Options
+
+All settings are optional and can be added to `.zed/settings.json`:
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `autoGenerateProjectSettings` | `true` | Auto-create `.zed/settings.json` template |
+| `languageServerRepo` | `arduino/arduino-language-server` | Custom GitHub repo for language server |
+| `autoDownloadCli` | `true` | Auto-download arduino-cli from GitHub |
+| `autoCreateConfig` | `false` | Auto-create `arduino-cli.yaml` if missing |
+| `autoInstallCore` | `false` | Auto-install board core for your FQBN |
+| `autoGenerateCompileDb` | `false` | Auto-generate `compile_commands.json` |
+
+### Disable Auto-Generation
+
+If you prefer to manage settings manually:
+
+```json
+{
+  "lsp": {
+    "arduino": {
+      "settings": {
+        "autoGenerateProjectSettings": false
+      }
+    }
+  }
+}
+```
+
+## Installing Board Cores
+
+First time using a board? Install its core:
+
+```bash
+arduino-cli core update-index
+arduino-cli core install esp32:esp32  # or arduino:avr, etc.
+```
+
+Or enable `autoInstallCore: true` in settings.
+
+## Getting Full IntelliSense
+
+For complete code completion with all library headers:
+
+```bash
+arduino-cli compile --fqbn esp32:esp32:esp32s3 --only-compilation-database .
+```
+
+Or enable `autoGenerateCompileDb: true` in settings.
+
+**After adding libraries:** Regenerate the compilation database and restart Zed.
+
+## Installing Libraries
+
+```bash
+arduino-cli lib search "Library Name"
+arduino-cli lib install "Library Name"
+```
+
+Then regenerate compilation database (see above).
+
+## Troubleshooting
+
+**Settings file not auto-generated?**
+- Check that `autoGenerateProjectSettings` is not explicitly set to `false`
+- The file won't be created if `.zed/settings.json` already exists
+
+**No code completion?**
+```bash
+arduino-cli compile --fqbn YOUR:BOARD:FQBN --only-compilation-database .
+# Restart Zed
+```
+
+**Library not found?**
+```bash
+arduino-cli lib install "Library Name"
+arduino-cli compile --fqbn YOUR:BOARD:FQBN --only-compilation-database .
+```
+
+**Custom language server not downloading?**
+- Verify the GitHub repo exists and has releases with Arduino Language Server assets
+- Check Zed logs: `Cmd+Shift+P` → "zed: open log"
+
+**Check logs:**
+In Zed: `Cmd+Shift+P` → "zed: open log"
+
+## Manual Installation (arduino-cli)
+
+The extension auto-downloads arduino-cli by default. To install manually instead:
+
+```bash
+# macOS
+brew install arduino-cli
+
+# Linux
+curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh
+
+# Then disable auto-download
+# Set "autoDownloadCli": false in settings
+```
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+## Credits
+
+- [Arduino Language Server](https://github.com/arduino/arduino-language-server)
+- [Arduino CLI](https://github.com/arduino/arduino-cli)

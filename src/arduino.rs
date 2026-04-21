@@ -1,8 +1,14 @@
-use std::{collections::HashMap, fs};
+mod cli;
+mod detection;
+mod downloads;
+mod utils;
+
+use std::collections::HashMap;
 use zed_extension_api::{self as zed, serde_json, settings::LspSettings, LanguageServerId, Result};
 
 struct ArduinoExtension {
-    cached_binary_path: Option<String>,
+    cached_language_server_path: Option<String>,
+    cached_arduino_cli_path: Option<String>,
 }
 
 impl ArduinoExtension {
@@ -15,124 +21,25 @@ impl ArduinoExtension {
         if let Ok(lsp_settings) = LspSettings::for_worktree("arduino", worktree) {
             if let Some(binary) = lsp_settings.binary {
                 if let Some(path) = binary.path {
-                    // Note: If a custom path is provided, we assume it's correct
-                    // and don't perform our download/versioning logic.
                     return Ok(path.clone());
                 }
             }
         }
 
-        // Check if the binary is already available in the system's PATH
-        if let Some(path) = worktree.which("arduino_language_server") {
-            return Ok(path);
-        }
-
-        // Check if we've cached a binary path from a previous download
-        // and that it still exists
-        if let Some(path) = &self.cached_binary_path {
-            if fs::metadata(path).map_or(false, |stat| stat.is_file()) {
-                return Ok(path.clone());
-            }
-        }
-
-        // If none of the above, proceed with downloading the latest version
-        zed::set_language_server_installation_status(
+        // Use downloads module to get the binary (checks PATH, cache, then downloads)
+        downloads::get_language_server_binary(
             language_server_id,
-            &zed::LanguageServerInstallationStatus::CheckingForUpdate,
-        );
-
-        let release = zed::latest_github_release(
-            "arduino/arduino-language-server",
-            zed::GithubReleaseOptions {
-                require_assets: true,
-                pre_release: false,
-            },
-        )?;
-
-        let (platform, arch) = zed::current_platform();
-
-        // Determine the expected asset name based on platform and architecture
-        // Note: This format matches the GitHub release asset names
-        let asset_name = format!(
-            "arduino-language-server_{}_{}_{}.tar.gz",
-            release.version,
-            match platform {
-                zed::Os::Mac => "macOS",
-                zed::Os::Linux => "Linux",
-                zed::Os::Windows => "Windows",
-            },
-            match arch {
-                zed::Architecture::Aarch64 => "ARM64",
-                zed::Architecture::X86 => "32bit",
-                zed::Architecture::X8664 => "64bit",
-            },
-        );
-
-        let asset = release
-            .assets
-            .iter()
-            .find(|asset| asset.name == asset_name)
-            .ok_or_else(|| format!("no asset found matching {:?}", asset_name))?;
-
-        // Define the version-specific directory name
-        let version_dir = format!("arduino-language-server-{}", release.version);
-
-        // Determine the expected name of the executable file within the extracted archive
-        let binary_name = match platform {
-            zed::Os::Mac | zed::Os::Linux => "arduino-language-server",
-            zed::Os::Windows => "arduino-language-server.exe",
-        };
-
-        // Construct the full path to the binary *inside* the versioned directory
-        let final_binary_path = format!("{}/{}", version_dir, binary_name);
-
-        // Check if the binary already exists at the expected versioned path
-        if !fs::metadata(&final_binary_path).map_or(false, |stat| stat.is_file()) {
-            zed::set_language_server_installation_status(
-                language_server_id,
-                &zed::LanguageServerInstallationStatus::Downloading,
-            );
-
-            // Download the archive. The target path for download_file is the directory
-            // where the archive should be extracted.
-            zed::download_file(
-                &asset.download_url,
-                &version_dir,
-                zed::DownloadedFileType::GzipTar,
-            )
-            .map_err(|e| format!("failed to download file: {e}"))?;
-
-            // Clean up old versions: Remove any directories in the current download location
-            // that are not the newly downloaded version directory.
-            let entries =
-                fs::read_dir(".").map_err(|e| format!("failed to list working directory {e}"))?;
-            for entry in entries {
-                let entry = entry.map_err(|e| format!("failed to load directory entry {e}"))?;
-                let file_type = entry.file_type().map_err(|e| {
-                    format!("failed to get file type for {:?}: {}", entry.path(), e)
-                })?;
-
-                if file_type.is_dir() {
-                    if entry.file_name().to_str() != Some(&version_dir) {
-                        // Ignore errors during cleanup as they aren't critical
-                        fs::remove_dir_all(entry.path()).ok();
-                    }
-                }
-            }
-
-            // Make the downloaded binary executable
-            zed::make_file_executable(&final_binary_path)?;
-        }
-
-        self.cached_binary_path = Some(final_binary_path.clone());
-        Ok(final_binary_path)
+            worktree,
+            &mut self.cached_language_server_path,
+        )
     }
 }
 
 impl zed::Extension for ArduinoExtension {
     fn new() -> Self {
         Self {
-            cached_binary_path: None,
+            cached_language_server_path: None,
+            cached_arduino_cli_path: None,
         }
     }
 
@@ -141,6 +48,9 @@ impl zed::Extension for ArduinoExtension {
         language_server_id: &LanguageServerId,
         worktree: &zed::Worktree,
     ) -> Result<zed::Command> {
+        // Auto-generate .zed/settings.json if it doesn't exist and feature is enabled
+        utils::auto_generate_project_settings(worktree).ok();
+
         // Get args and env from LSP settings first
         let mut args: Vec<String> = Vec::new();
         let mut env: HashMap<String, String> = HashMap::new();
@@ -165,18 +75,26 @@ impl zed::Extension for ArduinoExtension {
         let user_specified_cli = args.iter().any(|arg| arg == "-cli");
 
         if !user_specified_clangd {
-            // User did not specify -clangd, try to find it automatically
-            if let Some(clangd_path) = worktree.which("clangd") {
-                // Add the flag and its value to the arguments
+            // Use detection module to find clangd automatically
+            if let Some(clangd_path) = detection::find_clangd(worktree) {
                 args.push("-clangd".to_string());
                 args.push(clangd_path);
             }
         }
 
         if !user_specified_cli {
+            // Try to find arduino-cli in PATH first
             if let Some(cli_path) = worktree.which("arduino-cli") {
                 args.push("-cli".to_string());
                 args.push(cli_path);
+            } else {
+                // If not in PATH, try downloading it
+                if let Ok(cli_path) =
+                    downloads::get_arduino_cli_binary(worktree, &mut self.cached_arduino_cli_path)
+                {
+                    args.push("-cli".to_string());
+                    args.push(cli_path);
+                }
             }
         }
 
