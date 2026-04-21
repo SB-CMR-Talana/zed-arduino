@@ -105,12 +105,16 @@ Access via `Cmd+Shift+P` → `tasks: spawn`
 - **Arduino: Monitor Serial** - Open serial monitor (auto-detects port if not configured)
 - **Arduino: Show Sketch Size** - Display memory usage and compiled size
 
+<br>
+
 **Project Management:**
 - **Arduino: Generate Compilation Database** - Create `compile_commands.json` for full IntelliSense
 - **Arduino: Clean Build** - Remove all build artifacts and temporary files
 - **Arduino: Show Extension Status** - Display installation state (which tools downloaded, where stored)
 - **Arduino: Clear clangd Cache** - Fix stale IntelliSense by clearing symbol index
 - **Arduino: Clear arduino-cli Cache** - Resolve download/installation issues
+
+<br>
 
 **Board & Core Management:**
 - **Arduino: Update Core Index** - Refresh list of available board packages
@@ -120,6 +124,8 @@ Access via `Cmd+Shift+P` → `tasks: spawn`
 - **Arduino: Uninstall Core** - Remove board package
 - **Arduino: Upgrade All Cores** - Update all cores to latest versions
 - **Arduino: Board Details** - Show specifications for configured board
+
+<br>
 
 **Library Management:**
 - **Arduino: Search Libraries** - Find libraries by name (interactive search)
@@ -170,6 +176,8 @@ To use manually installed tools instead of auto-download:
 brew install arduino-cli clang
 ```
 
+<br>
+
 **Linux:**
 
 Debian/Ubuntu:
@@ -192,10 +200,14 @@ openSUSE:
 sudo zypper install arduino-cli clang
 ```
 
+<br>
+
 **Windows:**
 Download from:
 - https://github.com/arduino/arduino-cli/releases
 - https://github.com/clangd/clangd/releases
+
+<br>
 
 Configure paths in `.zed/settings.json`:
 
@@ -266,6 +278,8 @@ Configure paths in `.zed/settings.json`:
    Remove-Item -Recurse ".cache\clangd"
    Remove-Item -Recurse "$env:USERPROFILE\.arduino15"  # If using system arduino-cli
    ```
+
+<br>
 
 3. (Optional) Remove Arduino configuration files:
    
