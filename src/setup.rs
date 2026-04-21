@@ -149,27 +149,82 @@ pub fn auto_generate_tasks(worktree: &zed::Worktree) -> Result<()> {
     }},
     {{
       "label": "Arduino: Compile",
-      "command": "FQBN=$(grep -A 1 '\"-fqbn\"' .zed/settings.json | tail -1 | grep -o '\"[^\"]*\"' | tr -d '\"') && arduino-cli compile -b \"$FQBN\" .",
+      "command": "FQBN=$(grep -A 1 '\"-fqbn\"' .zed/settings.json | tail -1 | grep -o '\"[^\"]*\"' | tr -d '\"') || {{ echo 'Error: FQBN not found in .zed/settings.json'; exit 1; }}; arduino-cli compile -b \"$FQBN\" .",
       "use_new_terminal": true
     }},
     {{
-      "label": "Arduino: Upload",
-      "command": "FQBN=$(grep -A 1 '\"-fqbn\"' .zed/settings.json | tail -1 | grep -o '\"[^\"]*\"' | tr -d '\"') && PORT=$(grep '\"port\"' .zed/settings.json | grep -o '\"[^\"]*\"' | tail -1 | tr -d '\"') && arduino-cli upload -p \"$PORT\" -b \"$FQBN\" .",
+      "label": "Arduino: Compile (Verbose)",
+      "command": "FQBN=$(grep -A 1 '\"-fqbn\"' .zed/settings.json | tail -1 | grep -o '\"[^\"]*\"' | tr -d '\"') || {{ echo 'Error: FQBN not found in .zed/settings.json'; exit 1; }}; arduino-cli compile -v -b \"$FQBN\" .",
+      "use_new_terminal": true
+    }},
+    {{
+      "label": "Arduino: Upload (last compile)",
+      "command": "FQBN=$(grep -A 1 '\"-fqbn\"' .zed/settings.json | tail -1 | grep -o '\"[^\"]*\"' | tr -d '\"') || {{ echo 'Error: FQBN not found in .zed/settings.json'; exit 1; }}; PORT=$(grep '\"port\"' .zed/settings.json | grep -o '\"[^\"]*\"' | tail -1 | tr -d '\"'); if [ \"$PORT\" = \"REPLACE_WITH_YOUR_PORT\" ]; then PORT=$(arduino-cli board list --format json 2>/dev/null | grep -o '\"address\":\"[^\"]*\"' | head -1 | cut -d'\"' -f4); fi; if [ -z \"$PORT\" ]; then echo 'Error: Port not configured and auto-detection failed'; exit 1; fi; arduino-cli upload -p \"$PORT\" -b \"$FQBN\" .",
       "use_new_terminal": true
     }},
     {{
       "label": "Arduino: Compile & Upload",
-      "command": "FQBN=$(grep -A 1 '\"-fqbn\"' .zed/settings.json | tail -1 | grep -o '\"[^\"]*\"' | tr -d '\"') && PORT=$(grep '\"port\"' .zed/settings.json | grep -o '\"[^\"]*\"' | tail -1 | tr -d '\"') && arduino-cli compile -b \"$FQBN\" . && arduino-cli upload -p \"$PORT\" -b \"$FQBN\" .",
+      "command": "FQBN=$(grep -A 1 '\"-fqbn\"' .zed/settings.json | tail -1 | grep -o '\"[^\"]*\"' | tr -d '\"') || {{ echo 'Error: FQBN not found in .zed/settings.json'; exit 1; }}; PORT=$(grep '\"port\"' .zed/settings.json | grep -o '\"[^\"]*\"' | tail -1 | tr -d '\"'); if [ \"$PORT\" = \"REPLACE_WITH_YOUR_PORT\" ]; then PORT=$(arduino-cli board list --format json 2>/dev/null | grep -o '\"address\":\"[^\"]*\"' | head -1 | cut -d'\"' -f4); fi; if [ -z \"$PORT\" ]; then echo 'Error: Port not configured and auto-detection failed'; exit 1; fi; arduino-cli compile -b \"$FQBN\" . && arduino-cli upload -p \"$PORT\" -b \"$FQBN\" .",
       "use_new_terminal": true
     }},
     {{
       "label": "Arduino: Monitor Serial",
-      "command": "PORT=$(grep '\"port\"' .zed/settings.json | grep -o '\"[^\"]*\"' | tail -1 | tr -d '\"') && arduino-cli monitor -p \"$PORT\"",
+      "command": "PORT=$(grep '\"port\"' .zed/settings.json | grep -o '\"[^\"]*\"' | tail -1 | tr -d '\"'); if [ \"$PORT\" = \"REPLACE_WITH_YOUR_PORT\" ]; then PORT=$(arduino-cli board list --format json 2>/dev/null | grep -o '\"address\":\"[^\"]*\"' | head -1 | cut -d'\"' -f4); fi; if [ -z \"$PORT\" ]; then echo 'Error: Port not configured and auto-detection failed'; exit 1; fi; arduino-cli monitor -p \"$PORT\"",
+      "use_new_terminal": true
+    }},
+    {{
+      "label": "Arduino: Generate Compilation Database",
+      "command": "FQBN=$(grep -A 1 '\"-fqbn\"' .zed/settings.json | tail -1 | grep -o '\"[^\"]*\"' | tr -d '\"') || {{ echo 'Error: FQBN not found in .zed/settings.json'; exit 1; }}; arduino-cli compile --fqbn \"$FQBN\" --only-compilation-database .",
+      "use_new_terminal": true
+    }},
+    {{
+      "label": "Arduino: Update Core Index",
+      "command": "arduino-cli core update-index",
+      "use_new_terminal": true
+    }},
+    {{
+      "label": "Arduino: Search Boards",
+      "command": "echo 'Enter search term:' && read SEARCH && arduino-cli board listall | grep -i \"$SEARCH\"",
+      "use_new_terminal": true
+    }},
+    {{
+      "label": "Arduino: List Installed Cores",
+      "command": "arduino-cli core list",
+      "use_new_terminal": true
+    }},
+    {{
+      "label": "Arduino: Install Core",
+      "command": "arduino-cli core list && echo '' && echo 'Enter core to install (e.g., arduino:avr):' && read CORE && arduino-cli core install \"$CORE\"",
+      "use_new_terminal": true
+    }},
+    {{
+      "label": "Arduino: Uninstall Core",
+      "command": "arduino-cli core list && echo '' && echo 'Enter core to uninstall (e.g., arduino:avr):' && read CORE && arduino-cli core uninstall \"$CORE\"",
+      "use_new_terminal": true
+    }},
+    {{
+      "label": "Arduino: Search Libraries",
+      "command": "echo 'Enter search term:' && read SEARCH && arduino-cli lib search \"$SEARCH\"",
+      "use_new_terminal": true
+    }},
+    {{
+      "label": "Arduino: List Installed Libraries",
+      "command": "arduino-cli lib list",
+      "use_new_terminal": true
+    }},
+    {{
+      "label": "Arduino: Install Library",
+      "command": "arduino-cli lib list && echo '' && echo 'Enter library name to install:' && read LIBRARY && arduino-cli lib install \"$LIBRARY\"",
+      "use_new_terminal": true
+    }},
+    {{
+      "label": "Arduino: Uninstall Library",
+      "command": "arduino-cli lib list && echo '' && echo 'Enter library name to uninstall:' && read LIBRARY && arduino-cli lib uninstall \"$LIBRARY\"",
       "use_new_terminal": true
     }},
     {{
       "label": "Arduino: Clean Build",
-      "command": "rm -rf build",
+      "command": "rm -rf build compile_commands.json *.elf *.hex *.bin && echo 'Build artifacts cleaned'",
       "use_new_terminal": false
     }}
   ]

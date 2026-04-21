@@ -95,16 +95,47 @@ The extension auto-generates `.zed/tasks.json` with common Arduino commands. Acc
 **Command Palette** → `Cmd+Shift+P` / `Ctrl+Shift+P` → `tasks: spawn`
 
 Available tasks:
+
+**Core Workflow:**
 - **Arduino: List Boards & Ports** - Detect connected boards and their ports
 - **Arduino: Compile** - Verify your sketch compiles
-- **Arduino: Upload** - Upload sketch to your board
+- **Arduino: Compile (Verbose)** - Compile with detailed output for debugging
+- **Arduino: Upload (last compile)** - Upload previously compiled binary (auto-detects port if not configured)
 - **Arduino: Compile & Upload** - Compile then upload in one step
-- **Arduino: Monitor Serial** - Open serial monitor
-- **Arduino: Clean Build** - Remove build artifacts
+- **Arduino: Monitor Serial** - Open serial monitor (auto-detects port if not configured)
+
+**Project Management:**
+- **Arduino: Generate Compilation Database** - Create/update `compile_commands.json` for IntelliSense
+- **Arduino: Clean Build** - Remove all build artifacts (build/, *.elf, *.hex, *.bin, compile_commands.json)
+
+**Board & Core Management:**
+- **Arduino: Update Core Index** - Update available board packages
+- **Arduino: Search Boards** - Search for board FQBNs (interactive)
+- **Arduino: List Installed Cores** - Show installed board cores
+- **Arduino: Install Core** - Install a board core (shows installed cores first, then prompts)
+- **Arduino: Uninstall Core** - Remove an installed board core (shows installed cores first, then prompts)
+
+**Library Management:**
+- **Arduino: Search Libraries** - Search for available libraries (interactive)
+- **Arduino: List Installed Libraries** - Show all installed libraries
+- **Arduino: Install Library** - Install a library (shows installed libraries first, then prompts)
+- **Arduino: Uninstall Library** - Remove an installed library (shows installed libraries first, then prompts)
+
+### Understanding Upload Tasks
+
+**Arduino: Upload (last compile)** vs **Arduino: Compile & Upload**:
+
+- **Upload (last compile)** - Uploads the existing binary from your last compilation. Faster if you just want to re-upload the same code to another board or re-flash without changes. Fails if you haven't compiled yet.
+
+- **Compile & Upload** - Always compiles fresh before uploading. Use this for your normal workflow when you've made code changes. Guarantees you're uploading the latest version.
+
+**Recommendation:** Use **Compile & Upload** for most development. Only use **Upload (last compile)** when you want to quickly re-upload an unchanged binary.
 
 ### Configure Tasks
 
 **Both FQBN and port are automatically extracted from `.zed/settings.json`** - everything in one place!
+
+**Smart Port Auto-Detection:** If you haven't configured a port yet (or it's set to `REPLACE_WITH_YOUR_PORT`), upload and monitor tasks will automatically detect and use the first connected board's port. This means you can start uploading immediately after connecting a board!
 
 If you need to change your board or port (or if auto-detection didn't find your board), edit `.zed/settings.json`:
 
@@ -131,6 +162,14 @@ If you need to change your board or port (or if auto-detection didn't find your 
 - Linux: `/dev/ttyUSB0`, `/dev/ttyACM0`
 - macOS: `/dev/cu.usbserial-*`, `/dev/cu.usbmodem-*`
 - Windows: `COM3`, `COM4`, etc.
+
+### Task Features
+
+**Error Handling:** All tasks include helpful error messages. If a task fails (e.g., FQBN not configured, port not found), you'll see a clear explanation of what went wrong.
+
+**Interactive Tasks:** Install and uninstall tasks automatically show what's currently installed before prompting you for input. This helps you avoid duplicates and see exactly what's available to remove. Search tasks will prompt you for a search term.
+
+**Verbose Output:** Use **Arduino: Compile (Verbose)** when you need detailed compiler output for debugging build issues.
 
 **Customizing Terminal Output:**  
 By default, most tasks open in a terminal panel for better visibility. If you prefer inline output instead, edit `.zed/tasks.json` and change `"use_new_terminal": true` to `false` for any task.
