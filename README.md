@@ -12,6 +12,7 @@ Full Arduino development support in Zed with IntelliSense, diagnostics, and synt
 - 🗂️ Smart data isolation - arduino-cli downloaded by extension stores cores/libraries in extension directory for clean uninstall
 - ⚡ Zero-config setup - auto-generates project settings
 - 🔌 Auto-detects connected boards and configures FQBN and port
+- 📚 Custom library path support for project-specific libraries
 
 ## Quick Start
 
@@ -352,6 +353,81 @@ For a completely hands-off experience, enable automatic core installation and co
 
 **Note:** `autoInstallCore` and `autoGenerateCompileDb` may download large files (100MB+) and take several minutes on first run.
 
+## Custom Library Paths
+
+If you have project-specific libraries or want to use libraries from custom locations, you can specify them in your settings:
+
+```json
+{
+  "lsp": {
+    "arduino": {
+      "settings": {
+        "libraryPaths": [
+          "/path/to/custom/libraries",
+          "./project-libs",
+          "../shared-libraries"
+        ]
+      }
+    }
+  }
+}
+```
+
+**Features:**
+- Supports multiple library directories
+- Can use absolute or relative paths
+- Relative paths are resolved from the project root
+- Libraries are automatically included during compilation and IntelliSense
+
+**Global vs Project Settings:**
+- Project settings (`.zed/settings.json`) override global settings completely
+- If you define `libraryPaths` in both, **only the project paths are used**
+- To use both global and project libraries, you must list all paths in the project settings
+- Example: If global has `["/global/lib"]` and project has `["./local"]`, only `["./local"]` is used
+
+**Practical Example - Combining Global and Project Libraries:**
+
+Global settings (`~/.config/zed/settings.json`):
+```json
+{
+  "lsp": {
+    "arduino": {
+      "settings": {
+        "libraryPaths": ["/home/user/shared-arduino-libs"]
+      }
+    }
+  }
+}
+```
+
+Project settings (`.zed/settings.json` in your project):
+```json
+{
+  "lsp": {
+    "arduino": {
+      "settings": {
+        "libraryPaths": [
+          "/home/user/shared-arduino-libs",
+          "./local-libs"
+        ]
+      }
+    }
+  }
+}
+```
+
+This way, your project uses both the global shared libraries and its local libraries.
+
+**When to use:**
+- Custom or modified libraries not in arduino-cli's library manager
+- Project-specific libraries
+- Shared libraries across multiple projects
+- Development versions of libraries
+
+**Note:** After adding library paths, regenerate the compilation database:
+- Run task: `Arduino: Generate Compilation Database`
+- Or enable `autoGenerateCompileDb: true` in settings
+
 ## Configuration Options
 
 All settings are optional and can be added to `.zed/settings.json`:
@@ -370,9 +446,27 @@ All settings are optional and can be added to `.zed/settings.json`:
 
 **Alternative:** Use `binary.path` in LSP settings to specify an absolute path to a manually downloaded language server, bypassing automatic downloads.
 
+### Available Settings
+
+All settings go under `"lsp" → "arduino" → "settings"`:
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `autoGenerateProjectSettings` | boolean | `true` | Auto-generate `.zed/settings.json` and `.zed/tasks.json` |
+| `autoDownloadCli` | boolean | `true` | Auto-download arduino-cli if not in PATH |
+| `autoCreateConfig` | boolean | `false` | Auto-create minimal `arduino-cli.yaml` config |
+| `autoInstallCore` | boolean | `false` | Auto-install board core when FQBN is detected |
+| `autoGenerateCompileDb` | boolean | `false` | Auto-generate compilation database for IntelliSense |
+| `githubRepo` | string | `"arduino/arduino-language-server"` | Custom GitHub repo for language server |
+| `languageServerVersion` | string | `""` | Pin specific language server version |
+| `arduinoCliVersion` | string | `""` | Pin specific arduino-cli version |
+| `clangdVersion` | string | `""` | Pin specific clangd version |
+| `port` | string | `""` | Serial port for uploads (e.g., `/dev/ttyUSB0`) |
+| `libraryPaths` | array | `[]` | Custom library directories (absolute or relative paths) |
+
 ### Disable Auto-Generation
 
-If you prefer to manage settings manually:
+If you want to manually manage `.zed/settings.json`, disable auto-generation:
 
 ```json
 {
@@ -707,12 +801,33 @@ Or enable `autoGenerateCompileDb: true` in settings.
 
 ## Installing Libraries
 
+**Standard libraries (from arduino-cli):**
+
 ```bash
 arduino-cli lib search "Library Name"
 arduino-cli lib install "Library Name"
 ```
 
-Then regenerate compilation database (see above).
+**Custom/project-specific libraries:**
+
+Add them to your project and configure library paths in `.zed/settings.json`:
+
+```json
+{
+  "lsp": {
+    "arduino": {
+      "settings": {
+        "libraryPaths": ["./libraries", "/path/to/custom/libs"]
+      }
+    }
+  }
+}
+```
+
+**After installing or adding libraries:** Regenerate the compilation database:
+- Run task: `Arduino: Generate Compilation Database`
+- Or enable `autoGenerateCompileDb: true` in settings
+- Then restart Zed for full IntelliSense
 
 ## Code Snippets
 

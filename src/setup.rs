@@ -79,7 +79,8 @@ pub fn auto_generate_project_settings(worktree: &zed::Worktree) -> Result<()> {
         "autoCreateConfig": false,
         "autoInstallCore": false,
         "autoGenerateCompileDb": false,
-        "port": "{}"
+        "port": "{}",
+        "libraryPaths": []
       }}
     }}
   }},

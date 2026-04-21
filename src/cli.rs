@@ -72,6 +72,7 @@ pub fn generate_compilation_database(
     cli_path: &str,
     fqbn: &str,
     config_path: Option<&str>,
+    library_paths: &[String],
     worktree: &zed::Worktree,
 ) -> Result<()> {
     let worktree_root = worktree.root_path();
@@ -85,6 +86,10 @@ pub fn generate_compilation_database(
 
     if let Some(config) = config_path {
         cmd.arg("--config-file").arg(config);
+    }
+
+    if !library_paths.is_empty() {
+        cmd.arg("--libraries").arg(library_paths.join(","));
     }
 
     let output = cmd

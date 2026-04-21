@@ -90,9 +90,16 @@ impl ArduinoExtension {
                     eprintln!("Arduino: {}", e);
                 } else if let Some(cli_path) = utils::get_arg_value(args, "-cli") {
                     let config_path = utils::get_arg_value(args, "-cli-config");
+                    let library_paths = utils::get_library_paths(worktree);
                     // Try to generate (ignore errors - not critical)
-                    if cli::generate_compilation_database(cli_path, fqbn, config_path, worktree)
-                        .is_ok()
+                    if cli::generate_compilation_database(
+                        cli_path,
+                        fqbn,
+                        config_path,
+                        &library_paths,
+                        worktree,
+                    )
+                    .is_ok()
                     {
                         eprintln!("Arduino: Generated compile_commands.json automatically");
                     }
@@ -257,6 +264,33 @@ impl zed::Extension for ArduinoExtension {
                 if std::fs::write(&config_path, "board_manager:\n  additional_urls: []\n").is_ok() {
                     args.push("-cli-config".to_string());
                     args.push(config_path);
+                }
+            }
+        }
+
+        // Add custom library paths if specified in settings
+        let user_specified_libraries = args.iter().any(|arg| arg == "-libraries");
+        if !user_specified_libraries {
+            if let Ok(lsp_settings) = LspSettings::for_worktree("arduino", worktree) {
+                if let Some(settings) = lsp_settings.settings {
+                    if let Some(library_paths) = settings.get("libraryPaths") {
+                        if let Some(paths_array) = library_paths.as_array() {
+                            let mut paths: Vec<String> = Vec::new();
+                            for path_value in paths_array {
+                                if let Some(path_str) = path_value.as_str() {
+                                    paths.push(path_str.to_string());
+                                }
+                            }
+                            if !paths.is_empty() {
+                                args.push("-libraries".to_string());
+                                args.push(paths.join(","));
+                                eprintln!(
+                                    "Arduino: Using custom library paths: {}",
+                                    paths.join(", ")
+                                );
+                            }
+                        }
+                    }
                 }
             }
         }

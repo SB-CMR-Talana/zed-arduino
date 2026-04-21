@@ -36,6 +36,34 @@ pub fn get_string_setting(worktree: &zed::Worktree, key: &str, default: &str) ->
         .unwrap_or_else(|| default.to_string())
 }
 
+/// Get array of library paths from LSP config (returns empty vec if not found)
+pub fn get_library_paths(worktree: &zed::Worktree) -> Vec<String> {
+    let lsp_settings = match LspSettings::for_worktree("arduino", worktree) {
+        Ok(s) => s,
+        Err(_) => return Vec::new(),
+    };
+
+    let settings = match lsp_settings.settings {
+        Some(s) => s,
+        None => return Vec::new(),
+    };
+
+    let library_paths = match settings.get("libraryPaths") {
+        Some(v) => v,
+        None => return Vec::new(),
+    };
+
+    let paths_array = match library_paths.as_array() {
+        Some(arr) => arr,
+        None => return Vec::new(),
+    };
+
+    paths_array
+        .iter()
+        .filter_map(|v| v.as_str().map(String::from))
+        .collect()
+}
+
 /// Get argument value from command line args (e.g., get value after "-fqbn")
 pub fn get_arg_value<'a>(args: &'a [String], flag: &str) -> Option<&'a str> {
     args.iter()
