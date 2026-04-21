@@ -5,6 +5,7 @@ Full Arduino development support in Zed with IntelliSense, diagnostics, and synt
 ## Features
 
 - 🎨 Syntax highlighting for Arduino sketches
+- 📝 Code snippets for common Arduino patterns (setup, loop, Serial, etc.)
 - 🧠 Code completion, hover info, and go-to-definition
 - 🔍 Real-time diagnostics and error checking
 - 🔧 Auto-downloads Arduino Language Server and arduino-cli
@@ -278,6 +279,8 @@ If you prefer to manage settings manually:
 }
 ```
 
+
+
 ## Installing Board Cores
 
 First time using a board? Install its core:
@@ -309,6 +312,79 @@ arduino-cli lib install "Library Name"
 ```
 
 Then regenerate compilation database (see above).
+
+## Code Snippets
+
+The extension includes 40+ code snippets for common Arduino patterns. Just start typing a prefix and press Tab to expand.
+
+### Main Structure
+- `asl` - Complete sketch template with setup() and loop()
+- `asetup` - setup() function
+- `aloop` - loop() function
+
+### Serial Communication
+- `asbeg` - Serial.begin(9600)
+- `aspr` - Serial.print()
+- `asprl` - Serial.println()
+- `asprlbl` - Print with label (e.g., "Value: 123")
+- `asav` - Check if Serial.available()
+- `asrd` - Serial.read()
+
+### Digital I/O
+- `adw` - digitalWrite(pin, HIGH)
+- `adr` - digitalRead(pin)
+- `apm` - pinMode(pin, OUTPUT)
+
+### Analog I/O
+- `aaw` - analogWrite(pin, value)
+- `aar` - analogRead(pin)
+
+### Timing
+- `adel` - delay(milliseconds)
+- `adelus` - delayMicroseconds()
+- `amillis` - millis()
+- `amicros` - micros()
+- `ablink` - Non-blocking blink pattern using millis()
+
+### Control Flow
+- `afor` - for loop
+- `awhile` - while loop
+- `aif` - if statement
+- `aifelse` - if-else statement
+
+### Math & Random
+- `amap` - map(value, fromLow, fromHigh, toLow, toHigh)
+- `aconst` - constrain(value, min, max)
+- `arand` - random(min, max)
+- `arandseed` - randomSeed(analogRead(0))
+
+### Interrupts
+- `aint` - attachInterrupt()
+- `adint` - detachInterrupt()
+- `aisr` - Interrupt Service Routine function
+
+### Sound
+- `atone` - tone(pin, frequency)
+- `atoned` - tone(pin, frequency, duration)
+- `anotone` - noTone(pin)
+
+### Advanced I/O
+- `apulse` - pulseIn(pin, HIGH)
+- `ashiftout` - shiftOut()
+- `ashiftin` - shiftIn()
+
+### Libraries
+- `ainc` - #include <Library.h>
+- `adef` - #define constant
+- `aconst` - const variable declaration
+- `afunc` - function declaration
+- `awbeg` - Wire.begin() (I2C)
+- `aspibeg` - SPI.begin()
+- `aservo` - Servo control
+- `alcdbeg` - LCD initialization
+- `alcdpr` - LCD print
+
+**Tip:** All snippets start with `a` (for Arduino) to avoid conflicts with other language snippets. Most snippets include helpful placeholders that you can tab through to fill in.
 
 ## Troubleshooting
 

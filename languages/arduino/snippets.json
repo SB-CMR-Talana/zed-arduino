@@ -1,0 +1,382 @@
+{
+  "Arduino Sketch Template": {
+    "prefix": "asl",
+    "body": [
+      "void setup() {",
+      "\t${1:// put your setup code here, to run once:}",
+      "}",
+      "",
+      "void loop() {",
+      "\t${2:// put your main code here, to run repeatedly:}",
+      "}"
+    ],
+    "description": "Main Arduino sketch template with setup() and loop()"
+  },
+  "Setup Function": {
+    "prefix": "asetup",
+    "body": [
+      "void setup() {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Arduino setup() function"
+  },
+  "Loop Function": {
+    "prefix": "aloop",
+    "body": [
+      "void loop() {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Arduino loop() function"
+  },
+  "Serial Begin": {
+    "prefix": "asbeg",
+    "body": [
+      "Serial.begin(${1:9600});"
+    ],
+    "description": "Initialize Serial communication"
+  },
+  "Serial Print": {
+    "prefix": "aspr",
+    "body": [
+      "Serial.print(${0});"
+    ],
+    "description": "Print to Serial without newline"
+  },
+  "Serial Println": {
+    "prefix": "asprl",
+    "body": [
+      "Serial.println(${0});"
+    ],
+    "description": "Print to Serial with newline"
+  },
+  "Serial Print with Label": {
+    "prefix": "asprlbl",
+    "body": [
+      "Serial.print(\"${1:label}: \");",
+      "Serial.println(${2:value});"
+    ],
+    "description": "Print labeled value to Serial"
+  },
+  "Serial Available": {
+    "prefix": "asav",
+    "body": [
+      "if (Serial.available() > 0) {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Check if Serial data is available"
+  },
+  "Serial Read": {
+    "prefix": "asrd",
+    "body": [
+      "Serial.read()"
+    ],
+    "description": "Read from Serial"
+  },
+  "Digital Write": {
+    "prefix": "adw",
+    "body": [
+      "digitalWrite(${1:pin}, ${2:HIGH});"
+    ],
+    "description": "Write digital value to pin"
+  },
+  "Digital Read": {
+    "prefix": "adr",
+    "body": [
+      "digitalRead(${1:pin})"
+    ],
+    "description": "Read digital value from pin"
+  },
+  "Analog Write": {
+    "prefix": "aaw",
+    "body": [
+      "analogWrite(${1:pin}, ${2:value});"
+    ],
+    "description": "Write PWM value to pin"
+  },
+  "Analog Read": {
+    "prefix": "aar",
+    "body": [
+      "analogRead(${1:pin})"
+    ],
+    "description": "Read analog value from pin"
+  },
+  "Pin Mode": {
+    "prefix": "apm",
+    "body": [
+      "pinMode(${1:pin}, ${2|OUTPUT,INPUT,INPUT_PULLUP|});"
+    ],
+    "description": "Set pin mode"
+  },
+  "Delay": {
+    "prefix": "adel",
+    "body": [
+      "delay(${1:1000});"
+    ],
+    "description": "Delay in milliseconds"
+  },
+  "Delay Microseconds": {
+    "prefix": "adelus",
+    "body": [
+      "delayMicroseconds(${1:1000});"
+    ],
+    "description": "Delay in microseconds"
+  },
+  "Millis": {
+    "prefix": "amillis",
+    "body": [
+      "millis()"
+    ],
+    "description": "Get milliseconds since program start"
+  },
+  "Micros": {
+    "prefix": "amicros",
+    "body": [
+      "micros()"
+    ],
+    "description": "Get microseconds since program start"
+  },
+  "Blink Without Delay": {
+    "prefix": "ablink",
+    "body": [
+      "unsigned long previousMillis = 0;",
+      "const long interval = ${1:1000};",
+      "",
+      "void loop() {",
+      "\tunsigned long currentMillis = millis();",
+      "\t",
+      "\tif (currentMillis - previousMillis >= interval) {",
+      "\t\tpreviousMillis = currentMillis;",
+      "\t\t${2:// your code here}",
+      "\t}",
+      "}"
+    ],
+    "description": "Non-blocking blink pattern using millis()"
+  },
+  "For Loop": {
+    "prefix": "afor",
+    "body": [
+      "for (int ${1:i} = 0; ${1:i} < ${2:count}; ${1:i}++) {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "For loop"
+  },
+  "While Loop": {
+    "prefix": "awhile",
+    "body": [
+      "while (${1:condition}) {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "While loop"
+  },
+  "If Statement": {
+    "prefix": "aif",
+    "body": [
+      "if (${1:condition}) {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "If statement"
+  },
+  "If-Else Statement": {
+    "prefix": "aifelse",
+    "body": [
+      "if (${1:condition}) {",
+      "\t${2}",
+      "} else {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "If-else statement"
+  },
+  "Map Function": {
+    "prefix": "amap",
+    "body": [
+      "map(${1:value}, ${2:fromLow}, ${3:fromHigh}, ${4:toLow}, ${5:toHigh})"
+    ],
+    "description": "Re-map a number from one range to another"
+  },
+  "Constrain Function": {
+    "prefix": "aconst",
+    "body": [
+      "constrain(${1:value}, ${2:min}, ${3:max})"
+    ],
+    "description": "Constrain a value between min and max"
+  },
+  "Random": {
+    "prefix": "arand",
+    "body": [
+      "random(${1:min}, ${2:max})"
+    ],
+    "description": "Generate random number"
+  },
+  "Random Seed": {
+    "prefix": "arandseed",
+    "body": [
+      "randomSeed(analogRead(${1:0}));"
+    ],
+    "description": "Initialize random seed from analog pin"
+  },
+  "Attach Interrupt": {
+    "prefix": "aint",
+    "body": [
+      "attachInterrupt(digitalPinToInterrupt(${1:pin}), ${2:ISR}, ${3|RISING,FALLING,CHANGE,LOW|});"
+    ],
+    "description": "Attach interrupt to pin"
+  },
+  "Detach Interrupt": {
+    "prefix": "adint",
+    "body": [
+      "detachInterrupt(digitalPinToInterrupt(${1:pin}));"
+    ],
+    "description": "Detach interrupt from pin"
+  },
+  "ISR Function": {
+    "prefix": "aisr",
+    "body": [
+      "void ${1:myISR}() {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Interrupt Service Routine function"
+  },
+  "Tone": {
+    "prefix": "atone",
+    "body": [
+      "tone(${1:pin}, ${2:frequency});"
+    ],
+    "description": "Generate tone on pin"
+  },
+  "Tone with Duration": {
+    "prefix": "atoned",
+    "body": [
+      "tone(${1:pin}, ${2:frequency}, ${3:duration});"
+    ],
+    "description": "Generate tone on pin with duration"
+  },
+  "No Tone": {
+    "prefix": "anotone",
+    "body": [
+      "noTone(${1:pin});"
+    ],
+    "description": "Stop tone on pin"
+  },
+  "Pulse In": {
+    "prefix": "apulse",
+    "body": [
+      "pulseIn(${1:pin}, ${2|HIGH,LOW|});"
+    ],
+    "description": "Read pulse duration on pin"
+  },
+  "Shift Out": {
+    "prefix": "ashiftout",
+    "body": [
+      "shiftOut(${1:dataPin}, ${2:clockPin}, ${3|MSBFIRST,LSBFIRST|}, ${4:value});"
+    ],
+    "description": "Shift out data to pin"
+  },
+  "Shift In": {
+    "prefix": "ashiftin",
+    "body": [
+      "shiftIn(${1:dataPin}, ${2:clockPin}, ${3|MSBFIRST,LSBFIRST|});"
+    ],
+    "description": "Shift in data from pin"
+  },
+  "Include Library": {
+    "prefix": "ainc",
+    "body": [
+      "#include <${1:Library}.h>"
+    ],
+    "description": "Include library header"
+  },
+  "Define Constant": {
+    "prefix": "adef",
+    "body": [
+      "#define ${1:NAME} ${2:value}"
+    ],
+    "description": "Define preprocessor constant"
+  },
+  "Const Variable": {
+    "prefix": "aconst",
+    "body": [
+      "const ${1:int} ${2:name} = ${3:value};"
+    ],
+    "description": "Declare constant variable"
+  },
+  "Function": {
+    "prefix": "afunc",
+    "body": [
+      "${1:void} ${2:functionName}(${3:parameters}) {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Function declaration"
+  },
+  "Wire Begin": {
+    "prefix": "awbeg",
+    "body": [
+      "Wire.begin();"
+    ],
+    "description": "Initialize I2C (Wire library)"
+  },
+  "Wire Begin Address": {
+    "prefix": "awbega",
+    "body": [
+      "Wire.begin(${1:address});"
+    ],
+    "description": "Initialize I2C with address"
+  },
+  "SPI Begin": {
+    "prefix": "aspibeg",
+    "body": [
+      "SPI.begin();"
+    ],
+    "description": "Initialize SPI"
+  },
+  "Servo Write": {
+    "prefix": "aservo",
+    "body": [
+      "${1:myServo}.write(${2:angle});"
+    ],
+    "description": "Write angle to servo"
+  },
+  "Servo Attach": {
+    "prefix": "aservoa",
+    "body": [
+      "${1:myServo}.attach(${2:pin});"
+    ],
+    "description": "Attach servo to pin"
+  },
+  "LCD Begin": {
+    "prefix": "alcdbeg",
+    "body": [
+      "${1:lcd}.begin(${2:16}, ${3:2});"
+    ],
+    "description": "Initialize LCD with columns and rows"
+  },
+  "LCD Print": {
+    "prefix": "alcdpr",
+    "body": [
+      "${1:lcd}.print(${2:text});"
+    ],
+    "description": "Print to LCD"
+  },
+  "LCD Set Cursor": {
+    "prefix": "alcdcur",
+    "body": [
+      "${1:lcd}.setCursor(${2:col}, ${3:row});"
+    ],
+    "description": "Set LCD cursor position"
+  },
+  "LCD Clear": {
+    "prefix": "alcdclr",
+    "body": [
+      "${1:lcd}.clear();"
+    ],
+    "description": "Clear LCD display"
+  }
+}

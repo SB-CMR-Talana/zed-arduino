@@ -37,9 +37,12 @@ impl ArduinoExtension {
 
     /// Setup automation features (auto-install core, auto-generate compile DB)
     fn setup_automation(&mut self, args: &[String], worktree: &zed::Worktree) {
+        // Extract FQBN once and reuse it
+        let fqbn = utils::get_arg_value(args, "-fqbn").map(|s| s.to_string());
+
         // Auto-install core if enabled and FQBN is specified
         if utils::get_setting(worktree, "autoInstallCore", false) {
-            if let Some(fqbn) = utils::get_arg_value(args, "-fqbn") {
+            if let Some(ref fqbn) = fqbn {
                 // Validate FQBN format before using it
                 if let Err(e) = cli::validate_fqbn(fqbn) {
                     eprintln!("Arduino: {}", e);
@@ -61,7 +64,7 @@ impl ArduinoExtension {
         if utils::get_setting(worktree, "autoGenerateCompileDb", false)
             && !detection::check_compilation_database(worktree)
         {
-            if let Some(fqbn) = utils::get_arg_value(args, "-fqbn") {
+            if let Some(ref fqbn) = fqbn {
                 // Validate FQBN format before using it
                 if let Err(e) = cli::validate_fqbn(fqbn) {
                     eprintln!("Arduino: {}", e);
