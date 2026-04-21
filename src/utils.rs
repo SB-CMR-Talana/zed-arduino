@@ -111,3 +111,48 @@ pub fn check_dependencies(worktree: &zed::Worktree) -> Vec<String> {
 
     warnings
 }
+
+/// Extract version from arduino-cli binary path (e.g., "arduino-cli-1.0.4/arduino-cli" -> "1.0.4")
+pub fn extract_arduino_cli_version(path: &str) -> Option<String> {
+    let parts: Vec<&str> = path.split('/').collect();
+    if parts.len() < 2 {
+        return None;
+    }
+
+    let dir_name = parts[parts.len() - 2];
+    if let Some(version) = dir_name.strip_prefix("arduino-cli-") {
+        return Some(version.to_string());
+    }
+
+    None
+}
+
+/// Extract version from language server binary path (e.g., "arduino-language-server-0.7.5/arduino-language-server" -> "0.7.5")
+pub fn extract_language_server_version(path: &str) -> Option<String> {
+    let parts: Vec<&str> = path.split('/').collect();
+    if parts.len() < 2 {
+        return None;
+    }
+
+    let dir_name = parts[parts.len() - 2];
+    if let Some(version) = dir_name.strip_prefix("arduino-language-server-") {
+        return Some(version.to_string());
+    }
+
+    None
+}
+
+/// Extract version from clangd binary path (e.g., "clangd-18.1.3/clangd_18.1.3/bin/clangd" -> "18.1.3")
+pub fn extract_clangd_version(path: &str) -> Option<String> {
+    let parts: Vec<&str> = path.split('/').collect();
+    if parts.is_empty() {
+        return None;
+    }
+
+    let dir_name = parts[0];
+    if let Some(version) = dir_name.strip_prefix("clangd-") {
+        return Some(version.to_string());
+    }
+
+    None
+}

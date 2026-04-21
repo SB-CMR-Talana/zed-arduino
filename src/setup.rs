@@ -2,6 +2,7 @@ use std::fs;
 use std::path::Path;
 use zed_extension_api::{self as zed, Result};
 
+use crate::metadata::InstallationState;
 use crate::utils::get_setting;
 
 /// Auto-generate .zed/settings.json with default Arduino configuration
@@ -100,7 +101,7 @@ pub fn auto_generate_project_settings(worktree: &zed::Worktree) -> Result<()> {
 }
 
 /// Auto-generate .zed/tasks.json with Arduino commands
-pub fn auto_generate_tasks(worktree: &zed::Worktree) -> Result<()> {
+pub fn auto_generate_tasks(worktree: &zed::Worktree, state: &InstallationState) -> Result<()> {
     // Check if feature is enabled
     if !get_setting(worktree, "autoGenerateProjectSettings", true) {
         return Ok(());
@@ -117,6 +118,19 @@ pub fn auto_generate_tasks(worktree: &zed::Worktree) -> Result<()> {
 
     // Create .zed directory if it doesn't exist
     fs::create_dir_all(&zed_dir).map_err(|e| format!("failed to create .zed directory: {}", e))?;
+
+    // Determine platform-specific cache clear commands
+    let (clear_clangd_cmd, clear_arduino_cli_cmd) = match state.get_platform() {
+        Some(crate::metadata::Platform::Windows) => (
+            r#"echo 'Clearing clangd cache...' && (if exist .cache\clangd rmdir /s /q .cache\clangd) && (if exist %LOCALAPPDATA%\clangd\cache rmdir /s /q %LOCALAPPDATA%\clangd\cache) && echo 'clangd cache cleared'"#,
+            r#"echo 'Clearing arduino-cli cache...' && if exist %LOCALAPPDATA%\arduino-cli\cache rmdir /s /q %LOCALAPPDATA%\arduino-cli\cache && echo 'arduino-cli cache cleared'"#,
+        ),
+        _ => (
+            // Linux/macOS
+            r#"echo 'Clearing clangd cache...' && rm -rf .cache/clangd/ ~/.cache/clangd/ && echo 'clangd cache cleared'"#,
+            r#"echo 'Clearing arduino-cli cache...' && rm -rf ~/.cache/arduino-cli/ ~/Library/Caches/arduino-cli/ && echo 'arduino-cli cache cleared'"#,
+        ),
+    };
 
     // Get actual extension installation path
     let readme_path = std::env::current_dir()
@@ -253,6 +267,21 @@ pub fn auto_generate_tasks(worktree: &zed::Worktree) -> Result<()> {
       "use_new_terminal": true
     }},
     {{
+      "label": "Arduino: Show Extension Status",
+      "command": "if [ -f installation_state.json ]; then echo 'Extension Installation Status:' && cat installation_state.json | grep -v '{{' | grep -v '}}' || cat installation_state.json; else echo 'No installation state found. Tools may be using system installations.'; fi",
+      "use_new_terminal": true
+    }},
+    {{
+      "label": "Arduino: Clear clangd Cache",
+      "command": "{}",
+      "use_new_terminal": true
+    }},
+    {{
+      "label": "Arduino: Clear arduino-cli Cache",
+      "command": "{}",
+      "use_new_terminal": true
+    }},
+    {{
       "label": "Arduino: Clean Build",
       "command": "rm -rf build compile_commands.json *.elf *.hex *.bin && echo 'Build artifacts cleaned'",
       "use_new_terminal": false
@@ -260,11 +289,77 @@ pub fn auto_generate_tasks(worktree: &zed::Worktree) -> Result<()> {
   ]
 }}
 "#,
-        readme_path
+        readme_path, clear_clangd_cmd, clear_arduino_cli_cmd
     );
 
     fs::write(&tasks_file, default_tasks)
         .map_err(|e| format!("failed to write .zed/tasks.json: {}", e))?;
+
+    Ok(())
+}
+
+/// Create isolated arduino-cli config file that stores all data in extension directory
+pub fn create_isolated_arduino_config(state: &InstallationState) -> Result<()> {
+    // Only create if arduino-cli was downloaded by the extension
+    if !state.arduino_cli_installed_by_extension() {
+        return Ok(());
+    }
+
+    let config_file = "arduino-cli-isolated.yaml";
+    let data_dir = state
+        .get_arduino_cli_data_dir()
+        .unwrap_or_else(|| "arduino-data".to_string());
+
+    // Create isolated config pointing all directories to extension work directory
+    let config_content = format!(
+        r#"# Arduino CLI isolated configuration (managed by Zed extension)
+# All data is stored in the extension's directory for clean isolation
+
+directories:
+  data: {}
+  downloads: {}/staging
+  user: {}/user
+  builtin_tools: {}/builtin_tools
+
+daemon:
+  port: "50051"
+
+output:
+  no_color: false
+
+board_manager:
+  additional_urls: []
+
+library:
+  enable_unsafe_install: false
+
+logging:
+  level: info
+  format: text
+
+updater:
+  enable_notification: false
+
+# Note: Cache directory cannot be configured in arduino-cli config.
+# On Linux: May use ~/.cache/arduino-cli/
+# On macOS: May use ~/Library/Caches/arduino-cli/
+# On Windows: May use %LOCALAPPDATA%\arduino-cli\
+# These cache files are typically small and temporary.
+"#,
+        data_dir, data_dir, data_dir, data_dir
+    );
+
+    // Create data directory if it doesn't exist
+    fs::create_dir_all(&data_dir)
+        .map_err(|e| format!("failed to create arduino data directory: {}", e))?;
+
+    // Write config file
+    fs::write(config_file, config_content)
+        .map_err(|e| format!("failed to write isolated arduino-cli config: {}", e))?;
+
+    eprintln!(
+        "Arduino: Created isolated configuration - all cores and libraries will be stored in extension directory"
+    );
 
     Ok(())
 }

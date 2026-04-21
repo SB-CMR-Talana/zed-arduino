@@ -9,6 +9,7 @@ Full Arduino development support in Zed with IntelliSense, diagnostics, and synt
 - 🧠 Code completion, hover info, and go-to-definition
 - 🔍 Real-time diagnostics and error checking
 - 🔧 Auto-downloads Arduino Language Server, arduino-cli, and clangd
+- 🗂️ Smart data isolation - arduino-cli downloaded by extension stores cores/libraries in extension directory for clean uninstall
 - ⚡ Zero-config setup - auto-generates project settings
 - 🔌 Auto-detects connected boards and configures FQBN and port
 
@@ -109,6 +110,9 @@ Available tasks:
 **Project Management:**
 - **Arduino: Generate Compilation Database** - Create/update `compile_commands.json` for IntelliSense
 - **Arduino: Clean Build** - Remove all build artifacts (build/, *.elf, *.hex, *.bin, compile_commands.json)
+- **Arduino: Show Extension Status** - Display which tools were installed by the extension and their data storage locations
+- **Arduino: Clear clangd Cache** - Remove clangd index cache (project and system) to resolve stale IntelliSense issues
+- **Arduino: Clear arduino-cli Cache** - Remove arduino-cli download cache to resolve package installation issues
 
 **Board & Core Management:**
 - **Arduino: Update Core Index** - Update available board packages
@@ -137,6 +141,22 @@ Available tasks:
 - **Compile & Upload** - Always compiles fresh before uploading. Use this for your normal workflow when you've made code changes. Guarantees you're uploading the latest version.
 
 **Recommendation:** Use **Compile & Upload** for most development. Only use **Upload (last compile)** when you want to quickly re-upload an unchanged binary.
+
+### Understanding Cache Clearing Tasks
+
+**When to use cache clearing tasks:**
+
+- **Arduino: Clear clangd Cache** - Use when IntelliSense shows stale completions, outdated symbols, or incorrect errors after adding libraries or changing code structure. This clears the C++ symbol index cache.
+
+- **Arduino: Clear arduino-cli Cache** - Use when experiencing package download failures, corrupted core installations, or "hash mismatch" errors during core/library installation.
+
+**Important:** These tasks are for **troubleshooting during normal use**, NOT for uninstallation. If you're uninstalling the extension, close Zed first and manually delete cache directories - otherwise the tools will immediately recreate them.
+
+**What gets cleared:**
+- clangd cache: Project `.cache/clangd/` and system cache directory
+- arduino-cli cache: System cache directory (temporary download files)
+
+Both caches will be automatically regenerated as needed when you continue working.
 
 ### Configure Tasks
 
@@ -366,7 +386,301 @@ If you prefer to manage settings manually:
 }
 ```
 
+## Data Storage & Isolation
 
+The extension uses **smart data isolation** to ensure clean uninstalls while maintaining compatibility with the Arduino ecosystem.
+
+### **How It Works:**
+
+#### **arduino-cli found in PATH (System Installation)**
+If arduino-cli is already installed on your system:
+- ✅ Uses your existing `~/.arduino15/` directory
+- ✅ Shares board cores and libraries with Arduino IDE, PlatformIO, etc.
+- ✅ No duplication of large files (cores can be 200MB+ each)
+- ✅ Standard Arduino ecosystem behavior
+
+#### **arduino-cli downloaded by extension**
+If the extension downloads arduino-cli for you:
+- ✅ Stores ALL data in extension directory (isolated)
+- ✅ Board cores stored in extension directory
+- ✅ Libraries stored in extension directory
+- ✅ Clean uninstall - removing extension removes everything
+- ✅ No pollution of your home directory
+
+### **Installation Tracking:**
+
+The extension automatically tracks which tools it downloaded in `installation_state.json`:
+
+```json
+{
+  "platform": "linux",                // "linux" | "macos" | "windows"
+  "arduino_cli": {
+    "source": "downloaded",           // "downloaded" = isolated mode
+    "version": "1.0.4",
+    "location": "/path/to/arduino-cli",
+    "uses_isolated_data": true
+  }
+}
+```
+
+### **Why This Matters:**
+
+- **For new Arduino users:** Everything stays isolated - uninstalling the extension removes all Arduino data
+- **For existing Arduino users:** Your existing `~/.arduino15/` setup is used - no duplication, full compatibility
+- **For CI/CD:** Clean, isolated environments that don't pollute the system
+
+### **Manual Override:**
+
+If you want to force a specific behavior, use explicit paths:
+
+```json
+{
+  "lsp": {
+    "arduino": {
+      "binary": {
+        "arguments": [
+          "-cli", "/usr/local/bin/arduino-cli",  // Use system arduino-cli
+          "-fqbn", "esp32:esp32:esp32s3"
+        ]
+      }
+    }
+  }
+}
+```
+
+### **External Cache Files:**
+
+Even with isolated mode, some tools may still create cache files outside the extension directory. Here's the **complete picture**:
+
+#### **1. arduino-cli Cache (Small, Temporary)**
+
+**Location (cannot be configured):**
+- Linux: `~/.cache/arduino-cli/`
+- macOS: `~/Library/Caches/arduino-cli/`
+- Windows: `%LOCALAPPDATA%\arduino-cli\cache\`
+
+**What's cached:**
+- HTTP download cache during core/library installation
+- Temporary package extraction files
+- Network request cache
+
+**Size & Behavior:**
+- Typically <50MB
+- Automatically cleaned by arduino-cli after successful installations
+- Regenerated as needed
+
+**Impact:** Minimal - standard application cache behavior (like browser cache)
+
+---
+
+#### **2. clangd Index Cache (IDE Performance)**
+
+**Location:**
+- **Primary:** `<your-project>/.cache/clangd/` (project-specific)
+- **Alternative:** `~/.cache/clangd/` or `$XDG_CACHE_HOME/clangd/` (system-wide)
+
+**What's cached:**
+- Symbol index for fast code navigation
+- Precompiled headers for faster parsing
+- AST (Abstract Syntax Tree) cache
+
+**Size & Behavior:**
+- Varies by project: 10-100MB per project
+- Automatically regenerated if deleted
+- Speeds up IntelliSense significantly
+
+**Control:** Standard IDE cache (like `.vscode/` or `.idea/`). Add to `.gitignore`:
+```gitignore
+.cache/
+```
+
+---
+
+#### **3. Arduino Language Server (No External Data)**
+
+The Arduino Language Server itself writes **no cache or data files** outside the extension directory. It operates purely in-memory and via LSP protocol.
+
+---
+
+#### **4. Temporary System Files**
+
+Like any application, these tools may use:
+- `/tmp/` or `$TMPDIR` on Linux/macOS
+- `%TEMP%` on Windows
+
+These are automatically cleaned by the OS.
+
+---
+
+### **Complete External Writes Summary:**
+
+| Component | Writes Outside Extension/Project | Location | Size | Auto-Cleaned | User Impact |
+|-----------|----------------------------------|----------|------|--------------|-------------|
+| **Extension binaries** | ❌ No | Extension dir only | N/A | N/A | None |
+| **arduino-cli data** (isolated mode) | ❌ No | Extension dir | 0-500MB | On uninstall | None |
+| **arduino-cli data** (PATH mode) | ✅ Yes | `~/.arduino15/` | 0-500MB | Manual | Standard Arduino |
+| **arduino-cli cache** | ✅ Yes | System cache dir | <50MB | By arduino-cli | Minimal |
+| **clangd cache** | ✅ Yes | Project `.cache/` | 10-100MB | Regenerates | IDE performance |
+| **Arduino Language Server** | ❌ No | N/A | 0MB | N/A | None |
+| **System temp files** | ✅ Yes | `/tmp/`, `%TEMP%` | <10MB | By OS | None |
+
+---
+
+### **Manual Cache Cleanup:**
+
+**Important:** These cache directories are **NOT automatically deleted** by your operating system. If you want to reclaim disk space after uninstalling the extension, you'll need to manually remove them.
+
+#### **Locating Cache Directories:**
+
+**Linux:**
+- arduino-cli cache: `~/.cache/arduino-cli/`
+- clangd cache: `~/.cache/clangd/`
+- Project clangd cache: `<your-project>/.cache/clangd/`
+
+**macOS:**
+- arduino-cli cache: `~/Library/Caches/arduino-cli/`
+- clangd cache: `~/.cache/clangd/` or `~/Library/Caches/clangd/`
+- Project clangd cache: `<your-project>/.cache/clangd/`
+
+**Windows:**
+- arduino-cli cache: `%LOCALAPPDATA%\arduino-cli\cache\`
+- clangd cache: `%LOCALAPPDATA%\clangd\cache\`
+- Project clangd cache: `<your-project>\.cache\clangd\`
+
+#### **Cleanup Commands:**
+
+**Linux/macOS:**
+```bash
+# Remove arduino-cli cache
+rm -rf ~/.cache/arduino-cli/
+
+# Remove clangd system cache
+rm -rf ~/.cache/clangd/
+
+# Remove clangd project cache (run in your project directory)
+rm -rf .cache/clangd/
+
+# If using system arduino-cli (not isolated mode), remove all Arduino data
+rm -rf ~/.arduino15/
+```
+
+**Windows (PowerShell):**
+```powershell
+# Remove arduino-cli cache
+Remove-Item -Recurse -Force "$env:LOCALAPPDATA\arduino-cli\cache"
+
+# Remove clangd cache
+Remove-Item -Recurse -Force "$env:LOCALAPPDATA\clangd\cache"
+
+# Remove clangd project cache (run in your project directory)
+Remove-Item -Recurse -Force ".cache\clangd"
+
+# If using system arduino-cli (not isolated mode), remove all Arduino data
+Remove-Item -Recurse -Force "$env:USERPROFILE\.arduino15"
+```
+
+**Windows (Command Prompt):**
+```cmd
+rem Remove arduino-cli cache
+rmdir /s /q "%LOCALAPPDATA%\arduino-cli\cache"
+
+rem Remove clangd cache
+rmdir /s /q "%LOCALAPPDATA%\clangd\cache"
+
+rem Remove clangd project cache (run in your project directory)
+rmdir /s /q ".cache\clangd"
+
+rem If using system arduino-cli (not isolated mode)
+rmdir /s /q "%USERPROFILE%\.arduino15"
+```
+
+**Note:** These cache directories improve IDE performance. Only delete them if you're reclaiming disk space or troubleshooting issues. They will be recreated automatically when needed.
+
+---
+
+## Complete Uninstallation
+
+To completely remove the extension and all associated data:
+
+### **Step 1: Uninstall the Extension**
+
+In Zed, open the command palette (`Cmd+Shift+P` / `Ctrl+Shift+P`):
+- "zed: extensions" → Find "Arduino Language Support" → Uninstall
+
+**What this removes automatically:**
+- ✅ Extension code
+- ✅ Downloaded binaries (arduino-language-server, arduino-cli, clangd)
+- ✅ If arduino-cli was downloaded by extension: All board cores and libraries in extension directory
+- ✅ Installation metadata
+
+### **Step 2: Remove Project Configuration (Optional)**
+
+If you want to remove Arduino configuration from your projects:
+
+```bash
+# In each Arduino project directory
+rm -rf .zed/settings.json .zed/tasks.json
+```
+
+### **Step 3: Close Zed**
+
+**Important:** Close Zed completely before cleaning cache directories. If Zed is running with an Arduino project open, clangd and arduino-cli will recreate their caches immediately.
+
+### **Step 4: Remove Cache Directories (Optional)**
+
+**These are NOT removed automatically.** Clean them manually if desired (do NOT use the cache clearing tasks for uninstallation):
+
+**Linux/macOS:**
+```bash
+rm -rf ~/.cache/arduino-cli/
+rm -rf ~/.cache/clangd/
+```
+
+**Windows (PowerShell):**
+```powershell
+Remove-Item -Recurse -Force "$env:LOCALAPPDATA\arduino-cli\cache"
+Remove-Item -Recurse -Force "$env:LOCALAPPDATA\clangd\cache"
+```
+
+**Note:** The cache clearing tasks (`Arduino: Clear clangd Cache` and `Arduino: Clear arduino-cli Cache`) are for troubleshooting during normal use, not for uninstallation. Use the manual commands above after closing Zed.
+
+### **Step 5: Remove System Arduino Installation (If Applicable)**
+
+**Only do this if:**
+- You installed arduino-cli system-wide (not via the extension)
+- You don't use Arduino IDE or other Arduino tools
+- You want to completely remove all Arduino data
+
+**Linux/macOS:**
+```bash
+rm -rf ~/.arduino15/
+# If installed via package manager:
+# macOS: brew uninstall arduino-cli
+# Linux: sudo apt remove arduino-cli (or equivalent)
+```
+
+**Windows (PowerShell):**
+```powershell
+Remove-Item -Recurse -Force "$env:USERPROFILE\.arduino15"
+```
+
+---
+
+### **What Gets Left Behind:**
+
+After uninstalling the extension, the following may remain on your system:
+
+| Item | Location | Size | Auto-Removed |
+|------|----------|------|--------------|
+| **Extension binaries & data** | Extension work directory | Varies | ✅ Yes |
+| **Project .zed/ config** | Each project | <10KB | ❌ No |
+| **arduino-cli cache** | System cache directory | <50MB | ❌ No |
+| **clangd cache** | Project & system | 10-100MB | ❌ No |
+| **System arduino-cli data** | `~/.arduino15/` | 0-500MB | ❌ No (only if you installed it separately) |
+
+**For a 100% clean system:** Follow all 5 steps above.
+
+---
 
 ## Installing Board Cores
 
@@ -449,6 +763,35 @@ arduino-cli compile --fqbn YOUR:BOARD:FQBN --only-compilation-database .
 ```bash
 arduino-cli lib install "Library Name"
 arduino-cli compile --fqbn YOUR:BOARD:FQBN --only-compilation-database .
+```
+
+**IntelliSense not updating or stale completions?**
+Run the **Arduino: Clear clangd Cache** task (`Cmd+Shift+P` → `tasks: spawn`), then restart Zed.
+
+Alternatively, clear manually:
+```bash
+# Linux/macOS
+rm -rf .cache/clangd/
+rm -rf ~/.cache/clangd/
+
+# Windows (PowerShell)
+Remove-Item -Recurse -Force ".cache\clangd"
+Remove-Item -Recurse -Force "$env:LOCALAPPDATA\clangd\cache"
+```
+
+**arduino-cli behaving strangely or download issues?**
+Run the **Arduino: Clear arduino-cli Cache** task (`Cmd+Shift+P` → `tasks: spawn`), then retry your operation.
+
+Alternatively, clear manually:
+```bash
+# Linux/macOS
+rm -rf ~/.cache/arduino-cli/
+
+# macOS (alternative location)
+rm -rf ~/Library/Caches/arduino-cli/
+
+# Windows (PowerShell)
+Remove-Item -Recurse -Force "$env:LOCALAPPDATA\arduino-cli\cache"
 ```
 
 **Custom language server not downloading?**

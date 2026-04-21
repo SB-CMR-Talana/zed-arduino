@@ -1,6 +1,7 @@
 mod cli;
 mod detection;
 mod downloads;
+mod metadata;
 mod setup;
 mod utils;
 
@@ -11,6 +12,7 @@ struct ArduinoExtension {
     cached_language_server_path: Option<String>,
     cached_arduino_cli_path: Option<String>,
     cached_clangd_path: Option<String>,
+    installation_state: metadata::InstallationState,
 }
 
 impl ArduinoExtension {
@@ -23,17 +25,33 @@ impl ArduinoExtension {
         if let Ok(lsp_settings) = LspSettings::for_worktree("arduino", worktree) {
             if let Some(binary) = lsp_settings.binary {
                 if let Some(path) = binary.path {
+                    // Manual path specified by user
+                    self.installation_state
+                        .record_language_server_manual(path.clone());
+                    self.installation_state.save().ok();
                     return Ok(path.clone());
                 }
             }
         }
 
         // Use downloads module to get the binary (checks PATH, cache, then downloads)
-        downloads::get_language_server_binary(
+        let path = downloads::get_language_server_binary(
             language_server_id,
             worktree,
             &mut self.cached_language_server_path,
-        )
+        )?;
+
+        // Track that we downloaded it
+        if let Some(version) = utils::extract_language_server_version(&path) {
+            self.installation_state
+                .record_language_server_download(&version, path.clone());
+        } else {
+            self.installation_state
+                .record_language_server_download("unknown", path.clone());
+        }
+        self.installation_state.save().ok();
+
+        Ok(path)
     }
 
     /// Setup automation features (auto-install core, auto-generate compile DB)
@@ -89,6 +107,7 @@ impl zed::Extension for ArduinoExtension {
             cached_language_server_path: None,
             cached_arduino_cli_path: None,
             cached_clangd_path: None,
+            installation_state: metadata::InstallationState::load(),
         }
     }
 
@@ -97,11 +116,23 @@ impl zed::Extension for ArduinoExtension {
         language_server_id: &LanguageServerId,
         worktree: &zed::Worktree,
     ) -> Result<zed::Command> {
+        // Detect and record platform on first run
+        if self.installation_state.get_platform().is_none() {
+            let (platform, _) = zed::current_platform();
+            let detected_platform = match platform {
+                zed::Os::Linux => metadata::Platform::Linux,
+                zed::Os::Mac => metadata::Platform::MacOS,
+                zed::Os::Windows => metadata::Platform::Windows,
+            };
+            self.installation_state.record_platform(detected_platform);
+            self.installation_state.save().ok();
+        }
+
         // Auto-generate .zed/settings.json if it doesn't exist and feature is enabled
         setup::auto_generate_project_settings(worktree).ok();
 
         // Auto-generate .zed/tasks.json if it doesn't exist and feature is enabled
-        setup::auto_generate_tasks(worktree).ok();
+        setup::auto_generate_tasks(worktree, &self.installation_state).ok();
 
         // Get args and env from LSP settings first
         let mut args: Vec<String> = Vec::new();
@@ -129,12 +160,27 @@ impl zed::Extension for ArduinoExtension {
         if !user_specified_clangd {
             // Try to find clangd in PATH or Zed-managed locations first
             if let Some(clangd_path) = detection::find_clangd(worktree) {
+                // Found in system - track it
+                self.installation_state.record_clangd_from_system(
+                    clangd_path.clone(),
+                    metadata::ToolSource::ZedManaged,
+                );
+                self.installation_state.save().ok();
                 args.push("-clangd".to_string());
                 args.push(clangd_path);
             } else {
                 // If not found, try downloading it
                 match downloads::get_clangd_binary(worktree, &mut self.cached_clangd_path) {
                     Ok(clangd_path) => {
+                        // We downloaded it - track it
+                        if let Some(version) = utils::extract_clangd_version(&clangd_path) {
+                            self.installation_state
+                                .record_clangd_download(&version, clangd_path.clone());
+                        } else {
+                            self.installation_state
+                                .record_clangd_download("unknown", clangd_path.clone());
+                        }
+                        self.installation_state.save().ok();
                         args.push("-clangd".to_string());
                         args.push(clangd_path);
                     }
@@ -151,6 +197,10 @@ impl zed::Extension for ArduinoExtension {
         if !user_specified_cli {
             // Try to find arduino-cli in PATH first
             if let Some(cli_path) = worktree.which("arduino-cli") {
+                // Found in PATH - use system installation
+                self.installation_state
+                    .record_arduino_cli_from_path(cli_path.clone());
+                self.installation_state.save().ok();
                 args.push("-cli".to_string());
                 args.push(cli_path);
             } else {
@@ -158,6 +208,19 @@ impl zed::Extension for ArduinoExtension {
                 if let Ok(cli_path) =
                     downloads::get_arduino_cli_binary(worktree, &mut self.cached_arduino_cli_path)
                 {
+                    // We downloaded it - use isolated data directory
+                    if let Some(version) = crate::utils::extract_arduino_cli_version(&cli_path) {
+                        self.installation_state
+                            .record_arduino_cli_download(&version, cli_path.clone());
+                    } else {
+                        self.installation_state
+                            .record_arduino_cli_download("unknown", cli_path.clone());
+                    }
+                    self.installation_state.save().ok();
+
+                    // Create isolated config pointing to extension directory
+                    setup::create_isolated_arduino_config(&self.installation_state).ok();
+
                     args.push("-cli".to_string());
                     args.push(cli_path);
                 }
@@ -167,7 +230,13 @@ impl zed::Extension for ArduinoExtension {
         // Auto-detect or auto-create arduino-cli config if not specified
         let user_specified_cli_config = args.iter().any(|arg| arg == "-cli-config");
         if !user_specified_cli_config {
-            if let Some(config_path) = detection::find_arduino_cli_config(worktree) {
+            // If we downloaded arduino-cli, use isolated config
+            if self.installation_state.arduino_cli_uses_isolated_data() {
+                let isolated_config = "arduino-cli-isolated.yaml";
+                args.push("-cli-config".to_string());
+                args.push(isolated_config.to_string());
+            } else if let Some(config_path) = detection::find_arduino_cli_config(worktree) {
+                // Use system config
                 args.push("-cli-config".to_string());
                 args.push(config_path);
             } else if utils::get_setting(worktree, "autoCreateConfig", false) {

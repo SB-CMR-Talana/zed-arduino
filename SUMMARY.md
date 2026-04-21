@@ -599,10 +599,10 @@ The extension now provides a **complete, production-ready** Arduino development 
 - Intuitive task organization
 
 ### **📊 Statistics:**
-- **Rust Code**: ~800 lines across 6 modules
-- **Tasks**: 23 comprehensive tasks
+- **Rust Code**: ~1100 lines across 7 modules (added metadata.rs)
+- **Tasks**: 25 comprehensive tasks (added cache clearing tasks)
 - **Snippets**: 131 insertable code snippets
-- **Settings**: 7+ configurable options
+- **Settings**: 10+ configurable options (added version pinning settings)
 - **Platforms Supported**: ESP32, ESP8266, AVR, RP2040, SAMD, Teensy, STM32
 - **Operating Systems**: Linux, macOS, Windows
 - **Auto-detected Items**: Boards, ports, clangd, config files
@@ -613,11 +613,11 @@ The extension now provides a **complete, production-ready** Arduino development 
 
 ### **Potential Enhancements:**
 1. **Global Tasks**: Request Zed feature for extension-provided global tasks
-2. **Version Pinning**: Allow users to pin specific language server versions
-3. **Additional Snippets**: Expand based on user feedback and common patterns
-4. **FQBN Cache**: Cache FQBN lookups for performance
-5. **Library Path Config**: Support custom library paths if needed
-6. **Baud Rate Config**: Add serial monitor baud rate configuration in settings
+2. **Additional Snippets**: Expand based on user feedback and common patterns
+3. **FQBN Cache**: Cache FQBN lookups for performance
+4. **Library Path Config**: Support custom library paths if needed (in todo.md)
+5. **Baud Rate Config**: Add serial monitor baud rate configuration in settings
+6. **Improved Error Messages**: Better diagnostics when dependencies are missing (in todo.md)
 
 ### **Known Limitations:**
 1. **Task Duplication**: Tasks are duplicated per-project (Zed limitation)
@@ -641,23 +641,379 @@ The extension now provides a **complete, production-ready** Arduino development 
 
 ---
 
+## 📝 Session 3: Version Pinning, Installation Tracking & Data Isolation
+
+### **1. Complete Toolchain Version Pinning**
+
+**Initial State:**
+- Only Arduino Language Server had version pinning capability
+- arduino-cli and clangd always downloaded latest versions
+- No way to ensure reproducible builds across team members
+
+**Implemented Solution:**
+Added version pinning support for all three critical components:
+
+#### **Arduino Language Server** (Enhanced)
+```json
+{
+  "lsp": {
+    "arduino": {
+      "settings": {
+        "languageServerVersion": "0.7.5"  // or "v0.7.5"
+      }
+    }
+  }
+}
+```
+
+#### **arduino-cli** (New)
+```json
+{
+  "lsp": {
+    "arduino": {
+      "settings": {
+        "arduinoCliVersion": "1.0.4"  // or "v1.0.4"
+      }
+    }
+  }
+}
+```
+
+#### **clangd** (New)
+```json
+{
+  "lsp": {
+    "arduino": {
+      "settings": {
+        "clangdVersion": "18.1.3"  // Direct version number
+      }
+    }
+  }
+}
+```
+
+**Technical Implementation:**
+- ✅ `src/downloads.rs`: Added `get_clangd_binary()` with version pinning support
+- ✅ Version extraction functions for all tools to validate cached versions
+- ✅ `fetch_specific_version_clangd()` to download specific clangd releases
+- ✅ Smart caching - checks cached version matches desired pinned version
+- ✅ Automatic re-download if version mismatch detected
+- ✅ Platform-specific asset selection for clangd (mac/linux/windows, arm64/x86_64)
+
+**Benefits:**
+- Complete control over entire Arduino development toolchain
+- True CI/CD reproducibility - lock all tool versions
+- Team consistency - everyone uses identical development environment
+- Avoid breaking changes from automatic updates
+- Test compatibility with specific versions
+
+### **2. Smart Installation Tracking & Metadata System**
+
+**Problem Identified:**
+Extension downloaded tools but had no way to track:
+- Which tools were installed by the extension vs found in system
+- Where data should be stored (isolated vs shared)
+- What should be cleaned up on uninstall
+
+**Solution: Installation State Tracking**
+
+Created comprehensive metadata system in `src/metadata.rs`:
+
+```rust
+pub struct InstallationState {
+    pub platform: Option<Platform>,           // OS detection
+    pub arduino_cli: Option<ToolMetadata>,
+    pub clangd: Option<ToolMetadata>,
+    pub arduino_language_server: Option<ToolMetadata>,
+}
+
+pub struct ToolMetadata {
+    pub source: ToolSource,                   // How tool was obtained
+    pub version: Option<String>,
+    pub location: String,
+    pub uses_isolated_data: bool,             // Data isolation flag
+}
+
+pub enum ToolSource {
+    Downloaded,  // We downloaded it - use isolated storage
+    Path,        // Found in PATH - use system storage
+    ZedManaged,  // Managed by Zed (clangd)
+    Manual,      // User specified path
+}
+```
+
+**Metadata Persistence:**
+State saved to `installation_state.json` in extension work directory:
+
+```json
+{
+  "platform": "linux",
+  "arduino_cli": {
+    "source": "downloaded",
+    "version": "1.0.4",
+    "location": "arduino-cli-1.0.4/arduino-cli",
+    "uses_isolated_data": true
+  },
+  "clangd": {
+    "source": "downloaded",
+    "version": "18.1.3",
+    "location": "clangd-18.1.3/clangd_18.1.3/bin/clangd",
+    "uses_isolated_data": false
+  },
+  "arduino_language_server": {
+    "source": "downloaded",
+    "version": "0.7.5",
+    "location": "arduino-language-server-0.7.5/arduino-language-server",
+    "uses_isolated_data": false
+  }
+}
+```
+
+### **3. Intelligent Data Isolation**
+
+**The Core Innovation:**
+Extension now makes smart decisions about data storage based on how tools were obtained:
+
+#### **Scenario 1: arduino-cli Found in PATH (System Installation)**
+```
+User has arduino-cli installed system-wide
+└─ Extension detects it in PATH
+   └─ Records: source = "path"
+   └─ Uses: ~/.arduino15/ (shared with Arduino ecosystem)
+   └─ On uninstall: System installation untouched ✅
+   └─ Shares cores/libraries with Arduino IDE, PlatformIO ✅
+```
+
+#### **Scenario 2: arduino-cli Downloaded by Extension**
+```
+arduino-cli not found in PATH
+└─ Extension downloads it
+   └─ Records: source = "downloaded", uses_isolated_data = true
+   └─ Creates: arduino-cli-isolated.yaml
+   └─ Uses: <extension-dir>/arduino-data/ (isolated)
+   └─ On uninstall: Everything removed ✅
+   └─ No pollution of home directory ✅
+```
+
+**Implementation in `src/setup.rs`:**
+```rust
+pub fn create_isolated_arduino_config(state: &InstallationState) -> Result<()> {
+    if !state.arduino_cli_installed_by_extension() {
+        return Ok(()); // Don't create if system installation
+    }
+    
+    // Create config pointing all directories to extension work directory
+    let config_content = format!(
+        r#"directories:
+  data: {}
+  downloads: {}/staging
+  user: {}/user
+  builtin_tools: {}/builtin_tools"#,
+        data_dir, data_dir, data_dir, data_dir
+    );
+    
+    fs::write("arduino-cli-isolated.yaml", config_content)?;
+    Ok(())
+}
+```
+
+**Benefits:**
+- ✅ New users: Everything isolated, clean uninstall
+- ✅ Existing Arduino users: Shared ecosystem, no duplication
+- ✅ No configuration needed: Works automatically
+- ✅ Transparent: User can inspect via "Show Extension Status" task
+
+### **4. Platform Detection & Storage**
+
+**Enhancement:**
+Store detected OS in metadata for platform-specific features:
+
+```rust
+pub enum Platform {
+    Linux,
+    MacOS,
+    Windows,
+}
+```
+
+**Detection on First Run:**
+```rust
+// In src/arduino.rs - language_server_command()
+if self.installation_state.get_platform().is_none() {
+    let (platform, _) = zed::current_platform();
+    let detected_platform = match platform {
+        zed::Os::Linux => metadata::Platform::Linux,
+        zed::Os::Mac => metadata::Platform::MacOS,
+        zed::Os::Windows => metadata::Platform::Windows,
+    };
+    self.installation_state.record_platform(detected_platform);
+    self.installation_state.save().ok();
+}
+```
+
+**Use Case:**
+Enables platform-specific task generation (cache clearing commands differ by OS).
+
+### **5. Platform-Specific Cache Clearing Tasks**
+
+**New Tasks Added:**
+
+#### **Arduino: Clear clangd Cache**
+- **Linux/macOS:** `rm -rf .cache/clangd/ ~/.cache/clangd/`
+- **Windows:** `rmdir /s /q .cache\clangd %LOCALAPPDATA%\clangd\cache`
+
+#### **Arduino: Clear arduino-cli Cache**
+- **Linux/macOS:** `rm -rf ~/.cache/arduino-cli/ ~/Library/Caches/arduino-cli/`
+- **Windows:** `rmdir /s /q %LOCALAPPDATA%\arduino-cli\cache`
+
+**Implementation:**
+```rust
+// In src/setup.rs
+let (clear_clangd_cmd, clear_arduino_cli_cmd) = match state.get_platform() {
+    Some(Platform::Windows) => (
+        // Windows commands
+    ),
+    _ => (
+        // Linux/macOS commands
+    ),
+};
+```
+
+**Purpose:**
+- Troubleshooting stale IntelliSense (clangd cache)
+- Fixing download/installation issues (arduino-cli cache)
+- NOT for uninstallation (caches recreate if Zed is running)
+
+### **6. Comprehensive Documentation Updates**
+
+#### **README.md Additions:**
+
+**Data Storage & Isolation Section:**
+- Explains smart behavior based on installation source
+- Shows example `installation_state.json`
+- Clarifies when isolated vs shared storage is used
+
+**Complete Uninstallation Guide:**
+- Step 1: Uninstall extension
+- Step 2: Remove project configs (optional)
+- Step 3: **Close Zed** (critical step added)
+- Step 4: Remove cache directories manually
+- Step 5: Remove system Arduino installation (if applicable)
+- Table showing what gets left behind
+
+**Manual Cache Cleanup:**
+- Platform-specific cache locations documented
+- Linux, macOS, and Windows commands provided
+- PowerShell and Command Prompt variants for Windows
+- Clear note: Caches NOT automatically deleted by OS
+
+**Understanding Cache Clearing Tasks:**
+- When to use cache clearing tasks (troubleshooting)
+- When NOT to use them (uninstallation)
+- What gets cleared by each task
+- Explanation that caches regenerate automatically
+
+**Enhanced Troubleshooting:**
+- "IntelliSense not updating?" → Use cache clearing task
+- "arduino-cli behaving strangely?" → Use cache clearing task
+- Recommends tasks first, provides manual commands as alternative
+
+#### **Features List Updated:**
+- Added: "🗂️ Smart data isolation - arduino-cli downloaded by extension stores cores/libraries in extension directory for clean uninstall"
+- Added: "🔧 Auto-downloads Arduino Language Server, arduino-cli, and clangd"
+- Updated configuration options table with version pinning settings
+
+### **7. External Data Analysis**
+
+**Complete Analysis of Writes Outside Extension/Project:**
+
+| Component | Writes Outside | Location | Size | Removable |
+|-----------|----------------|----------|------|-----------|
+| **Extension binaries** | ❌ No | Extension dir | N/A | Auto |
+| **arduino-cli data (isolated)** | ❌ No | Extension dir | 0-500MB | Auto |
+| **arduino-cli data (PATH)** | ✅ Yes | `~/.arduino15/` | 0-500MB | Manual |
+| **arduino-cli cache** | ✅ Yes | System cache | <50MB | Manual |
+| **clangd cache** | ✅ Yes | Project/system | 10-100MB | Manual |
+| **Language Server** | ❌ No | N/A | 0MB | N/A |
+
+**Key Finding:**
+Only arduino-cli cache and clangd cache persist outside controlled directories. Both are:
+- Standard application cache behavior (like browser cache)
+- Small in size (<150MB total worst case)
+- Improve performance significantly
+- Must be manually deleted (OS does NOT auto-clean)
+
+### **8. Key Architectural Improvements**
+
+**Module Structure:**
+```
+src/
+├── metadata.rs       - NEW: Installation tracking system
+├── arduino.rs        - Enhanced: Records tool installation sources
+├── downloads.rs      - Enhanced: Version pinning for all tools
+├── setup.rs          - Enhanced: Isolated config generation
+└── utils.rs          - Enhanced: Version extraction helpers
+```
+
+**Code Quality:**
+- ✅ No compiler errors or warnings
+- ✅ Clean separation of concerns
+- ✅ Comprehensive error handling
+- ✅ Platform-specific logic properly abstracted
+
+### **9. User Experience Enhancements**
+
+**Zero Configuration Required:**
+- Extension detects how tools were obtained automatically
+- Smart decision-making about data storage
+- No user configuration needed for isolation
+
+**Transparency:**
+- "Arduino: Show Extension Status" task displays metadata
+- Clear documentation of what happens in each scenario
+- Explicit uninstallation instructions
+
+**Troubleshooting Made Easy:**
+- One-click cache clearing via tasks
+- Platform-specific commands generated automatically
+- Clear guidance on when to use each troubleshooting tool
+
+### **10. Production Readiness Checklist**
+
+✅ **Complete toolchain version control**
+✅ **Smart installation tracking**
+✅ **Intelligent data isolation**
+✅ **Platform detection and storage**
+✅ **Cache management tools**
+✅ **Comprehensive documentation**
+✅ **Clean uninstallation path**
+✅ **No compiler warnings**
+✅ **Cross-platform support**
+✅ **Backward compatible**
+
+---
+
 ## 🎉 Summary
 
-This Arduino extension for Zed provides a **comprehensive, professional-grade development environment** for Arduino projects. Through smart auto-detection, extensive task coverage, 131 code snippets, and thoughtful UX design, it delivers a seamless experience from project setup through deployment.
+This Arduino extension for Zed provides a **comprehensive, professional-grade development environment** for Arduino projects. Through smart auto-detection, extensive task coverage, 131 code snippets, intelligent installation tracking, and complete toolchain version control, it delivers a seamless experience from project setup through deployment.
 
 **Key Achievements:**
-- ✅ **23 comprehensive tasks** covering the entire Arduino workflow
+- ✅ **25 comprehensive tasks** covering the entire Arduino workflow (including cache management)
 - ✅ **131 insertable snippets** for rapid development across 7+ platforms
+- ✅ **Complete version pinning** for Arduino Language Server, arduino-cli, and clangd
+- ✅ **Smart installation tracking** with metadata persistence in `installation_state.json`
+- ✅ **Intelligent data isolation** - extension-downloaded tools use isolated storage for clean uninstall
 - ✅ **Smart auto-detection** of boards, ports, and tools
+- ✅ **Platform-specific support** with OS detection and platform-aware task generation
 - ✅ **Cross-platform support** for ESP32, ESP8266, AVR, RP2040, SAMD, Teensy, STM32
 - ✅ **Zero-config setup** with intelligent defaults
 - ✅ **Production-ready codebase** with clean architecture
 
-The codebase is clean, well-organized, and production-ready. The extension successfully bridges the gap between Zed's modern editing experience and the Arduino ecosystem's tools and workflows.
+The codebase is clean, well-organized, and production-ready. The extension successfully bridges the gap between Zed's modern editing experience and the Arduino ecosystem's tools and workflows, while providing complete control over the development toolchain and clean uninstallation capabilities.
 
 **Ready for users! 🚀**
 
 ---
 
-*Last Updated: Session 2 - Comprehensive snippet system implementation with 131 insertable snippets*
+*Last Updated: Session 3 - Version pinning, installation tracking, and smart data isolation*
 *Repository: https://github.com/SB-CMR-Talana/zed-arduino*
