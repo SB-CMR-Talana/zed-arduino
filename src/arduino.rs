@@ -16,6 +16,9 @@ struct ArduinoExtension {
     cached_language_server_path: Option<String>,
     cached_arduino_cli_path: Option<String>,
     cached_clangd_path: Option<String>,
+    // Cached detection results
+    cached_clangd_info: Option<detection::ToolInfo>,
+    cached_arduino_cli_info: Option<detection::ToolInfo>,
     installation_state: metadata::InstallationState,
 }
 
@@ -30,16 +33,29 @@ impl ArduinoExtension {
         language_server_id: &LanguageServerId,
         worktree: &zed::Worktree,
     ) -> Result<String> {
-        // Check for explicit path override in settings
+        // Check for explicit path override in binary.path (native Zed, takes precedence)
         if let Ok(lsp_settings) = LspSettings::for_worktree("arduino", worktree) {
             if let Some(binary) = lsp_settings.binary {
                 if let Some(path) = binary.path {
                     self.installation_state
                         .record_language_server_manual(path.clone());
-                    self.installation_state.save().ok();
+                    if let Err(e) = self.installation_state.save() {
+                        eprintln!("Arduino: Failed to save installation state: {}", e);
+                    }
                     return Ok(path.clone());
                 }
             }
+        }
+
+        // Check for ls.path fallback in settings
+        let ls_path = utils::get_string_setting(worktree, "ls.path", "");
+        if !ls_path.is_empty() {
+            self.installation_state
+                .record_language_server_manual(ls_path.clone());
+            if let Err(e) = self.installation_state.save() {
+                eprintln!("Arduino: Failed to save installation state: {}", e);
+            }
+            return Ok(ls_path);
         }
 
         // Use downloads module to get binary (checks PATH, cache, then downloads)
@@ -57,19 +73,49 @@ impl ArduinoExtension {
             self.installation_state
                 .record_language_server_download("unknown", path.clone());
         }
-        self.installation_state.save().ok();
+        if let Err(e) = self.installation_state.save() {
+            eprintln!("Arduino: Failed to save installation state: {}", e);
+        }
 
         Ok(path)
     }
 
     // Find or download clangd and add to args
     fn ensure_clangd_available(&mut self, args: &mut Vec<String>, worktree: &zed::Worktree) {
-        if let Some(clangd_path) = detection::find_clangd(worktree) {
+        // Check cache first - reuse if still valid
+        if let Some(ref info) = self.cached_clangd_info {
+            if detection::file_exists(&info.path) {
+                args.push("-clangd".to_string());
+                args.push(info.path.clone());
+
+                // Add custom clangd arguments from settings
+                let clangd_args = utils::get_string_array_setting(worktree, "clangd.arguments");
+                for arg in clangd_args {
+                    args.push(arg);
+                }
+                return;
+            } else {
+                // Cached tool no longer exists, clear cache
+                self.cached_clangd_info = None;
+            }
+        }
+
+        if let Some(info) = detection::find_clangd_info(worktree) {
+            detection::log_tool_info_public("clangd", &info);
             self.installation_state
-                .record_clangd_from_system(clangd_path.clone(), metadata::ToolSource::ZedManaged);
-            self.installation_state.save().ok();
+                .record_clangd_from_system(info.path.clone(), metadata::ToolSource::ZedManaged);
+            if let Err(e) = self.installation_state.save() {
+                eprintln!("Arduino: Failed to save installation state: {}", e);
+            }
             args.push("-clangd".to_string());
-            args.push(clangd_path);
+            args.push(info.path.clone());
+            self.cached_clangd_info = Some(info);
+
+            // Add custom clangd arguments from settings
+            let clangd_args = utils::get_string_array_setting(worktree, "clangd.arguments");
+            for arg in clangd_args {
+                args.push(arg);
+            }
         } else {
             match downloads::get_clangd_binary(worktree, &mut self.cached_clangd_path) {
                 Ok(clangd_path) => {
@@ -77,9 +123,17 @@ impl ArduinoExtension {
                         .unwrap_or_else(|| "unknown".to_string());
                     self.installation_state
                         .record_clangd_download(&version, clangd_path.clone());
-                    self.installation_state.save().ok();
+                    if let Err(e) = self.installation_state.save() {
+                        eprintln!("Arduino: Failed to save installation state: {}", e);
+                    }
                     args.push("-clangd".to_string());
                     args.push(clangd_path);
+
+                    // Add custom clangd arguments from settings
+                    let clangd_args = utils::get_string_array_setting(worktree, "clangd.arguments");
+                    for arg in clangd_args {
+                        args.push(arg);
+                    }
                 }
                 Err(e) => {
                     eprintln!("\n{}", e);
@@ -96,12 +150,28 @@ impl ArduinoExtension {
         args: &mut Vec<String>,
         worktree: &zed::Worktree,
     ) -> Result<()> {
-        if let Some(cli_path) = worktree.which("arduino-cli") {
+        // Check cache first - reuse if still valid
+        if let Some(ref info) = self.cached_arduino_cli_info {
+            if detection::file_exists(&info.path) {
+                args.push("-cli".to_string());
+                args.push(info.path.clone());
+                return Ok(());
+            } else {
+                // Cached tool no longer exists, clear cache
+                self.cached_arduino_cli_info = None;
+            }
+        }
+
+        if let Some(info) = detection::find_arduino_cli_info(worktree) {
+            detection::log_tool_info_public("arduino-cli", &info);
             self.installation_state
-                .record_arduino_cli_from_path(cli_path.clone());
-            self.installation_state.save().ok();
+                .record_arduino_cli_from_path(info.path.clone());
+            if let Err(e) = self.installation_state.save() {
+                eprintln!("Arduino: Failed to save installation state: {}", e);
+            }
             args.push("-cli".to_string());
-            args.push(cli_path);
+            args.push(info.path.clone());
+            self.cached_arduino_cli_info = Some(info);
         } else {
             match downloads::get_arduino_cli_binary(worktree, &mut self.cached_arduino_cli_path) {
                 Ok(cli_path) => {
@@ -109,9 +179,14 @@ impl ArduinoExtension {
                         .unwrap_or_else(|| "unknown".to_string());
                     self.installation_state
                         .record_arduino_cli_download(&version, cli_path.clone());
-                    self.installation_state.save().ok();
+                    if let Err(e) = self.installation_state.save() {
+                        eprintln!("Arduino: Failed to save installation state: {}", e);
+                    }
 
-                    setup::create_isolated_arduino_config(&self.installation_state).ok();
+                    if let Err(e) = setup::create_isolated_arduino_config(&self.installation_state)
+                    {
+                        eprintln!("Arduino: {}", e);
+                    }
 
                     args.push("-cli".to_string());
                     args.push(cli_path);
@@ -171,7 +246,7 @@ impl ArduinoExtension {
         let fqbn = utils::get_arg_value(args, "-fqbn").map(|s| s.to_string());
 
         // Auto-install core if enabled and FQBN is specified
-        if utils::get_setting(worktree, "autoInstallCore", false) {
+        if utils::get_setting(worktree, "autoInstallCore", true) {
             if let Some(ref fqbn) = fqbn {
                 self.validate_and_use_fqbn(fqbn, |fqbn| {
                     if let Some(core_id) = cli::extract_core_id(fqbn) {
@@ -189,7 +264,7 @@ impl ArduinoExtension {
         }
 
         // Auto-generate compilation database if enabled
-        if utils::get_setting(worktree, "autoGenerateCompileDb", false)
+        if utils::get_setting(worktree, "autoGenerateCompileDb", true)
             && !detection::check_compilation_database(worktree)
         {
             if let Some(ref fqbn) = fqbn {
@@ -221,6 +296,8 @@ impl zed::Extension for ArduinoExtension {
             cached_language_server_path: None,
             cached_arduino_cli_path: None,
             cached_clangd_path: None,
+            cached_clangd_info: None,
+            cached_arduino_cli_info: None,
             installation_state: metadata::InstallationState::load(),
         }
     }
@@ -230,6 +307,43 @@ impl zed::Extension for ArduinoExtension {
         language_server_id: &LanguageServerId,
         worktree: &zed::Worktree,
     ) -> Result<zed::Command> {
+        // Check for explicit sketch path override
+        let explicit_sketch_path = utils::get_string_setting(worktree, "sketchPath", "");
+
+        if !explicit_sketch_path.is_empty() {
+            eprintln!(
+                "Arduino: Using explicit sketch path from settings: {}",
+                explicit_sketch_path
+            );
+        } else {
+            // Detect Arduino sketches in the worktree
+            let sketches = detection::find_sketch_directories(worktree);
+            if sketches.is_empty() {
+                eprintln!("Arduino: Warning - No sketch directories found in workspace");
+                eprintln!("Arduino: Looking for directories containing .ino or .pde files");
+            } else if sketches.len() == 1 {
+                let sketch_path = &sketches[0];
+                if sketch_path == "." {
+                    eprintln!("Arduino: Found sketch in workspace root");
+                } else {
+                    eprintln!("Arduino: Found sketch at: {}", sketch_path);
+                }
+            } else {
+                eprintln!("Arduino: Found {} sketches in workspace:", sketches.len());
+                for sketch in &sketches {
+                    eprintln!("  - {}", sketch);
+                }
+                eprintln!(
+                    "Arduino: Using first sketch (shallowest, then alphabetically): {}",
+                    sketches[0]
+                );
+                eprintln!("Arduino: Note - Multiple sketches detected. For best results, open each sketch directory as a separate workspace.");
+                eprintln!(
+                    "Arduino: Tip - Set 'sketchPath' in settings to explicitly choose a sketch."
+                );
+            }
+        }
+
         // Detect and record platform on first run
         if self.installation_state.get_platform().is_none() {
             let (platform, _) = zed::current_platform();
@@ -239,14 +353,15 @@ impl zed::Extension for ArduinoExtension {
                 zed::Os::Windows => metadata::Platform::Windows,
             };
             self.installation_state.record_platform(detected_platform);
-            self.installation_state.save().ok();
+            if let Err(e) = self.installation_state.save() {
+                eprintln!("Arduino: Failed to save installation state: {}", e);
+            }
         }
 
-        // Auto-generate .zed/settings.json if enabled
-        setup::auto_generate_project_settings(worktree).ok();
-
-        // Auto-generate .zed/tasks.json if enabled
-        setup::auto_generate_tasks(worktree, &self.installation_state).ok();
+        // Auto-generate .zed/tasks.json if enabled (settings generation removed - use task instead)
+        if let Err(e) = setup::auto_generate_tasks(worktree, &self.installation_state) {
+            eprintln!("Arduino: {}", e);
+        }
 
         // Check dependencies and report any issues
         validation::report_dependencies(worktree);
@@ -257,6 +372,7 @@ impl zed::Extension for ArduinoExtension {
 
         if let Ok(lsp_settings) = LspSettings::for_worktree("arduino", worktree) {
             if let Some(binary) = lsp_settings.binary {
+                // binary.arguments takes precedence
                 if let Some(binary_args) = binary.arguments {
                     args = binary_args;
                 }
@@ -267,33 +383,95 @@ impl zed::Extension for ArduinoExtension {
             }
         }
 
+        // If no binary.arguments, fall back to ls.arguments from settings
+        if args.is_empty() {
+            args = utils::get_string_array_setting(worktree, "ls.arguments");
+        }
+
         // Get the language server binary path
         let command_path = self.language_server_binary_path(language_server_id, worktree)?;
 
-        if !utils::has_arg(&args, "-clangd") {
-            self.ensure_clangd_available(&mut args, worktree);
+        // Add FQBN from settings if not already in args
+        if !utils::has_arg(&args, "-fqbn") {
+            let fqbn = utils::get_string_setting(worktree, "fqbn", "");
+            if !fqbn.is_empty() {
+                args.push("-fqbn".to_string());
+                args.push(fqbn);
+            } else {
+                eprintln!("Arduino: Warning - FQBN not configured in settings or binary.arguments");
+                eprintln!(
+                    "Arduino: Add 'fqbn' to lsp.arduino.settings or '-fqbn' to binary.arguments"
+                );
+            }
         }
 
+        // Add clangd path from settings if not already in args
+        if !utils::has_arg(&args, "-clangd") {
+            let clangd_path = utils::get_string_setting(worktree, "clangd.path", "");
+            if !clangd_path.is_empty() {
+                args.push("-clangd".to_string());
+                args.push(clangd_path);
+
+                // Add custom clangd arguments from settings
+                let clangd_args = utils::get_string_array_setting(worktree, "clangd.arguments");
+                for arg in clangd_args {
+                    args.push(arg);
+                }
+            } else {
+                // Fall back to auto-detection/download
+                self.ensure_clangd_available(&mut args, worktree);
+            }
+        }
+
+        // Add arduino-cli path from settings if not already in args
         if !utils::has_arg(&args, "-cli") {
-            self.ensure_arduino_cli_available(&mut args, worktree)?;
+            let cli_path = utils::get_string_setting(worktree, "cli.path", "");
+            if !cli_path.is_empty() {
+                args.push("-cli".to_string());
+                args.push(cli_path);
+            } else {
+                // Fall back to auto-detection/download
+                self.ensure_arduino_cli_available(&mut args, worktree)?;
+            }
         }
 
         // Auto-detect or auto-create arduino-cli config
         let user_specified_cli_config = utils::has_arg(&args, "-cli-config");
         if !user_specified_cli_config {
-            if self.installation_state.arduino_cli_uses_isolated_data() {
+            // First check settings
+            let cli_config_setting = utils::get_string_setting(worktree, "cli.config", "");
+            if !cli_config_setting.is_empty() {
+                args.push("-cli-config".to_string());
+                args.push(cli_config_setting);
+            } else if self.installation_state.arduino_cli_uses_isolated_data() {
                 // Use isolated config for downloaded arduino-cli
                 let isolated_config = "arduino-cli-isolated.yaml";
                 args.push("-cli-config".to_string());
                 args.push(isolated_config.to_string());
-            } else if let Some(config_path) = detection::find_arduino_cli_config(worktree) {
+            } else if let Some(config_path) =
+                detection::find_arduino_cli_config(worktree, utils::get_arg_value(&args, "-cli"))
+            {
                 // Use system config
                 args.push("-cli-config".to_string());
                 args.push(config_path);
-            } else if utils::get_setting(worktree, "autoCreateConfig", false) {
+            } else if utils::get_setting(worktree, "autoCreateConfig", true) {
                 // Auto-create minimal config if enabled
                 let config_path = format!("{}/.arduino-cli.yaml", worktree.root_path());
-                if std::fs::write(&config_path, "board_manager:\n  additional_urls: []\n").is_ok() {
+
+                // Check for additional board manager URLs
+                let additional_urls = utils::get_string_array_setting(worktree, "additionalUrls");
+                let urls_yaml = if additional_urls.is_empty() {
+                    "board_manager:\n  additional_urls: []\n".to_string()
+                } else {
+                    let urls_list = additional_urls
+                        .iter()
+                        .map(|url| format!("    - {}", url))
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    format!("board_manager:\n  additional_urls:\n{}\n", urls_list)
+                };
+
+                if std::fs::write(&config_path, urls_yaml).is_ok() {
                     args.push("-cli-config".to_string());
                     args.push(config_path);
                 }

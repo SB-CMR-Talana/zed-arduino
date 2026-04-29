@@ -25,11 +25,14 @@ pub fn get_language_server_binary(
     }
 
     // Get custom GitHub repo from settings (format: "owner/repo")
-    let repo =
-        crate::utils::get_string_setting(worktree, "githubRepo", "arduino/arduino-language-server");
+    let repo = crate::utils::get_string_setting(
+        worktree,
+        "ls.githubRepo",
+        "arduino/arduino-language-server",
+    );
 
     // Check for version pinning setting
-    let pinned_version = crate::utils::get_string_setting(worktree, "languageServerVersion", "");
+    let pinned_version = crate::utils::get_string_setting(worktree, "ls.version", "");
     let version_to_use = if pinned_version.is_empty() {
         None
     } else {
@@ -165,7 +168,7 @@ pub fn get_arduino_cli_binary(
     }
 
     // Check for version pinning setting
-    let pinned_version = crate::utils::get_string_setting(worktree, "arduinoCliVersion", "");
+    let pinned_version = crate::utils::get_string_setting(worktree, "cli.version", "");
     let version_to_use = if pinned_version.is_empty() {
         None
     } else {
@@ -293,7 +296,7 @@ pub fn get_clangd_binary(
     }
 
     // Check for version pinning setting
-    let pinned_version = crate::utils::get_string_setting(worktree, "clangdVersion", "");
+    let pinned_version = crate::utils::get_string_setting(worktree, "clangd.version", "");
     let version_to_use = if pinned_version.is_empty() {
         None
     } else {
@@ -503,7 +506,13 @@ fn cleanup_old_versions(prefix: &str, current_dir: &str) -> Result<()> {
         if file_type.is_dir() {
             if let Some(name) = entry.file_name().to_str() {
                 if name.starts_with(prefix) && name != current_dir {
-                    fs::remove_dir_all(entry.path()).ok();
+                    if let Err(e) = fs::remove_dir_all(entry.path()) {
+                        eprintln!(
+                            "Arduino: Failed to remove old version directory {:?}: {}",
+                            entry.path(),
+                            e
+                        );
+                    }
                 }
             }
         }

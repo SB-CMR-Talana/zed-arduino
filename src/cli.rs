@@ -106,6 +106,12 @@ pub fn generate_compilation_database(
         cmd.arg("--libraries").arg(library_paths.join(","));
     }
 
+    // Add custom arduino-cli compile arguments from settings
+    let custom_args = crate::utils::get_string_array_setting(worktree, "cli.compileArguments");
+    for arg in custom_args {
+        cmd.arg(arg);
+    }
+
     let output = cmd
         .output()
         .map_err(|e| format!("failed to run arduino-cli compile: {}", e))?;

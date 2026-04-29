@@ -4,6 +4,55 @@ Full Arduino development support in Zed with IntelliSense, diagnostics, and synt
 
 ## Features
 
+### Comprehensive Tool Detection
+
+The extension provides intelligent, multi-layered tool detection:
+
+#### Detection Priority Order
+1. **Explicit Settings**: `binary.arguments` or `lsp.arduino.settings.*`
+2. **Environment Variables**: `CLANGD_PATH`, `ARDUINO_CLI_PATH`, `ARDUINO_CLI_CONFIG`
+3. **Standard Arduino Environment Variables**: `ARDUINO_DIRECTORIES_DATA`, `ARDUINO_DIRECTORIES_USER`
+4. **PATH**: System PATH environment variable
+5. **Tool-Specific Locations**: Zed-managed, Arduino IDE installations, package managers
+6. **Auto-Download**: Downloads tools if not found anywhere
+
+#### Supported Detection Locations
+
+**clangd:**
+- PATH and `CLANGD_PATH` environment variable
+- Zed-managed: `~/.var/app/dev.zed.Zed/data/zed/languages/clangd/` (Flatpak)
+- Zed-managed: `~/.local/share/zed/languages/clangd/` (standard)
+- Zed-managed: `~/Library/Application Support/Zed/languages/clangd/` (macOS)
+- System paths: `/usr/bin`, `/usr/local/bin`, `/opt/homebrew/bin`, `/snap/bin`
+
+**arduino-cli:**
+- PATH and `ARDUINO_CLI_PATH` environment variable  
+- Arduino environment: `$ARDUINO_DIRECTORIES_DATA`, `$ARDUINO_DIRECTORIES_USER`
+- System paths: `/usr/bin`, `/usr/local/bin`, `/opt/homebrew/bin`, `/snap/bin`
+- Arduino IDE: `~/.arduino15/`, `~/Arduino/`, Flatpak, Snap, macOS, Windows installations
+
+**arduino-cli.yaml:**
+- `ARDUINO_CLI_CONFIG` environment variable
+- Arduino environment: `$ARDUINO_DIRECTORIES_DATA`, `$ARDUINO_DIRECTORIES_USER`
+- Near arduino-cli binary (same directory)
+- Project root: `.arduino-cli.yaml`, `arduino-cli.yaml`
+- User home: `~/.arduino15/`, `~/.config/arduino-cli/`, `$XDG_CONFIG_HOME`
+- Arduino IDE installations
+
+#### Detection Features
+- **Version Checking**: Detects and warns about outdated tools (min: clangd 14.0.0, arduino-cli 0.33.0)
+- **Symlink Resolution**: Shows both symlink and actual paths
+- **Caching**: Caches detection results for faster subsequent starts
+- **Verbose Logging**: Shows where each tool was found and its version
+- **Diagnostic Task**: Run "Arduino: Show Detected Tools" to see all detection results
+
+###  Core Features
+
+- **Smart Sketch Detection**: Automatically finds Arduino sketches in subdirectories
+  - Scans workspace recursively for `.ino`/`.pde` files
+  - Selects sketch closest to workspace root (by depth, then alphabetically)
+  - Logs detected sketches on startup
+  - Works with nested sketch directories
 - Auto-downloads Arduino Language Server, arduino-cli, and clangd
 - Smart data isolation (extension-managed tools store data in extension dir)
 - Auto-detects connected boards (FQBN + port)
@@ -21,23 +70,78 @@ Full Arduino development support in Zed with IntelliSense, diagnostics, and synt
 
 Extension validates dependencies on startup and provides detailed recovery steps for any missing tools.
 
+## Working with Arduino Sketches
+
+### Sketch Detection
+
+The extension automatically scans your workspace for Arduino sketch directories (containing `.ino` or `.pde` files):
+
+- **Single Sketch**: Works seamlessly, logs the detected location
+- **Nested Sketches**: Finds sketches in subdirectories (e.g., `projects/my-sketch/`)
+- **Multiple Sketches**: Selects the shallowest directory, then alphabetically
+  - Logs all detected sketches at startup
+  - For multiple independent sketches, **open each as a separate workspace** for best results
+
+### Best Practices
+
+**Single Sketch Project** (Recommended):
+```
+my-project/
+  my-sketch.ino
+  config.h
+  .zed/
+    settings.json
+```
+
+**Nested Sketch** (Supported):
+```
+my-monorepo/
+  arduino/
+    my-sketch/
+      my-sketch.ino  ← Auto-detected
+  other-stuff/
+```
+
+**Multiple Sketches** (Open separately):
+```
+my-sketches/
+  sketch-a/     ← Open this directory in Zed
+    sketch-a.ino
+  sketch-b/     ← Open this directory in a new Zed window
+    sketch-b.ino
+```
+
+> **Note**: Due to Zed extension API limitations, only one language server instance can run per workspace. For multiple independent sketches, open each sketch directory as its own workspace.
+
 ## Configuration Reference
 
 All settings go in `.zed/settings.json` under `lsp.arduino.settings`:
 
 | Setting | Default | Description |
 |---------|---------|-------------|
+| fqbn | | **Required:** Fully Qualified Board Name (e.g., arduino:avr:uno, esp32:esp32:esp32) |
 | port | | Serial port (e.g., /dev/ttyUSB0, COM3) |
+| baudRate | 9600 | Baud rate for serial monitor (e.g., 9600, 115200) |
+| sketchPath | | Override sketch directory path (for multi-sketch workspaces) |
+| clangdPath | | Path to clangd binary (auto-detected if not specified) |
+| arduinoCliPath | | Path to arduino-cli binary (auto-detected/downloaded if not specified) |
+| arduinoCliConfig | | Path to arduino-cli.yaml config file (auto-detected if not specified) |
 | libraryPaths | | Custom library directories (absolute or relative) |
+| additionalUrls | | Board manager additional URLs (e.g., for ESP32/ESP8266) |
+| buildPath | | Custom build directory path (default: system temp) |
+| warnings | "none" | Compiler warnings level: "none", "default", "more", "all" |
+| verbose | false | Enable verbose compilation output |
+| programmer | | Programmer for ISP uploads (e.g., "usbtiny", "usbasp") |
+| uploadProtocol | | Override upload protocol (rarely needed) |
 | githubRepo | "arduino/arduino-language-server" | GitHub repo (owner/repo) |
 | languageServerVersion | | Pin language server version (e.g., "0.7.5") |
 | arduinoCliVersion | | Pin arduino-cli version (e.g., "1.0.4") |
 | clangdVersion | | Pin clangd version (e.g., "18.1.3") |
-| autoGenerateProjectSettings | true | Auto-create .zed/settings.json template |
+| autoGenerateTasks | true | Auto-create .zed/tasks.json with Arduino commands |
 | autoDownloadCli | true | Auto-download arduino-cli if not in PATH |
-| autoCreateConfig | false | Auto-create arduino-cli.yaml if missing |
-| autoInstallCore | false | Auto-install board core from FQBN |
-| autoGenerateCompileDb | false | Auto-generate compile_commands.json |
+| autoCreateConfig | true | Auto-create arduino-cli.yaml if missing |
+| autoInstallCore | true | Auto-install board core from FQBN |
+| autoGenerateCompileDb | true | Auto-generate compile_commands.json for better IntelliSense |
 
 ### Minimal Configuration
 
@@ -45,11 +149,25 @@ All settings go in `.zed/settings.json` under `lsp.arduino.settings`:
 {
   "lsp": {
     "arduino": {
+      "settings": {
+        "fqbn": "arduino:avr:uno",
+        "port": "/dev/ttyUSB0"
+      }
+    }
+  }
+}
+```
+
+**Legacy format** (still supported for backward compatibility):
+```jsonc
+{
+  "lsp": {
+    "arduino": {
       "binary": {
-        "arguments": ["-fqbn", "vendor:arch:board"]
+        "arguments": ["-fqbn", "arduino:avr:uno"]
       },
       "settings": {
-        "port": "PORT"
+        "port": "/dev/ttyUSB0"
       }
     }
   }
@@ -63,29 +181,56 @@ All settings go in `.zed/settings.json` under `lsp.arduino.settings`:
   "lsp": {
     "arduino": {
       "binary": {
-        "path": "/absolute/path/to/arduino-language-server",  // Optional: override auto-download
-        "arguments": [
-          "-fqbn",
-          "vendor:arch:board",
-          "-cli", "/path/to/arduino-cli",      // Optional: manual CLI path
-          "-clangd", "/path/to/clangd"         // Optional: manual clangd path
-        ]
+        "path": "/absolute/path/to/arduino-language-server"  // Optional: override auto-download
       },
       "settings": {
-        "port": "PORT",
+        "fqbn": "esp32:esp32:esp32s3",
+        "port": "/dev/ttyUSB0",
+        "baudRate": 115200,
+        "sketchPath": "projects/my-sketch",           // Optional: for multi-sketch workspaces
+        "clangdPath": "/path/to/clangd",              // Optional: override auto-detection
+        "arduinoCliPath": "/path/to/arduino-cli",     // Optional: override auto-detection
+        "arduinoCliConfig": "/path/to/arduino-cli.yaml",  // Optional: override auto-detection
         "libraryPaths": [
           "/path/to/libraries",
           "./relative/path"
         ],
+        "additionalUrls": [                           // Optional: for ESP32/ESP8266/etc
+          "https://espressif.github.io/arduino-esp32/package_esp32_index.json",
+          "https://arduino.esp8266.com/stable/package_esp8266com_index.json"
+        ],
+        "buildPath": "./build",                       // Optional: persistent build directory
+        "warnings": "all",                            // Optional: "none", "default", "more", "all"
+        "verbose": true,                               // Optional: verbose compilation
+        "programmer": "usbtiny",                      // Optional: for ISP uploads
+        "uploadProtocol": "serial",                   // Optional: override protocol
         "githubRepo": "owner/repo",
         "languageServerVersion": "x.y.z",
         "arduinoCliVersion": "x.y.z",
         "clangdVersion": "x.y.z",
-        "autoGenerateProjectSettings": true,
+        "autoGenerateTasks": true,
         "autoDownloadCli": true,
         "autoCreateConfig": true,
         "autoInstallCore": true,
         "autoGenerateCompileDb": true
+      }
+    }
+  }
+}
+```
+
+**Legacy binary.arguments format** (still supported):
+```jsonc
+{
+  "lsp": {
+    "arduino": {
+      "binary": {
+        "arguments": [
+          "-fqbn", "esp32:esp32:esp32s3",
+          "-cli", "/path/to/arduino-cli",
+          "-clangd", "/path/to/clangd",
+          "-cli-config", "/path/to/arduino-cli.yaml"
+        ]
       }
     }
   }
@@ -207,26 +352,17 @@ Download from:
 - https://github.com/arduino/arduino-cli/releases
 - https://github.com/clangd/clangd/releases
 
+Add to your PATH or use environment variables.
+
 <br>
 
-Configure paths in `.zed/settings.json`:
+**That's it!** The extension will automatically detect installed tools through:
+- PATH
+- Standard installation locations
+- Zed-managed installations
+- Environment variables (`CLANGD_PATH`, `ARDUINO_CLI_PATH`, `ARDUINO_CLI_CONFIG`)
 
-```jsonc
-{
-  "lsp": {
-    "arduino": {
-      "binary": {
-        "path": "/path/to/arduino-language-server",
-        "arguments": [
-          "-cli", "/path/to/arduino-cli",
-          "-clangd", "/path/to/clangd",
-          "-fqbn", "esp32:esp32:esp32s3"
-        ]
-      }
-    }
-  }
-}
-```
+No configuration needed unless you want to override detection. See [Configuration Reference](#configuration-reference) for optional settings.
 
 ## Troubleshooting
 

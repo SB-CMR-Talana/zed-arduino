@@ -43,9 +43,18 @@ impl InstallationState {
     pub fn load() -> Self {
         let state_file = "installation_state.json";
 
-        if let Ok(contents) = fs::read_to_string(state_file) {
-            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&contents) {
-                return Self::from_json(&json);
+        match fs::read_to_string(state_file) {
+            Ok(contents) => match serde_json::from_str::<serde_json::Value>(&contents) {
+                Ok(json) => return Self::from_json(&json),
+                Err(e) => {
+                    eprintln!(
+                        "Arduino: Failed to parse installation state ({}), using defaults",
+                        e
+                    );
+                }
+            },
+            Err(_) => {
+                // File doesn't exist on first run - this is normal
             }
         }
 

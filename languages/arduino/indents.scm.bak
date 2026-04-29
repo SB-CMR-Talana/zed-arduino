@@ -2,7 +2,7 @@
 [
   (declaration_list)
   (field_declaration_list)
-  (compound_statement)
+  (statement_block)
   (enumerator_list)
   (initializer_list)
 ] @indent

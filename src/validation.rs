@@ -105,9 +105,9 @@ pub fn check_dependencies(worktree: &zed::Worktree) -> (Vec<String>, Vec<String>
     let mut warnings = Vec::new();
 
     let auto_download_cli = crate::utils::get_setting(worktree, "autoDownloadCli", true);
-    let auto_create_config = crate::utils::get_setting(worktree, "autoCreateConfig", false);
+    let auto_create_config = crate::utils::get_setting(worktree, "autoCreateConfig", true);
     let auto_generate_compile_db =
-        crate::utils::get_setting(worktree, "autoGenerateCompileDb", false);
+        crate::utils::get_setting(worktree, "autoGenerateCompileDb", true);
 
     // Check for arduino-cli
     if worktree.which("arduino-cli").is_none() {
@@ -137,7 +137,7 @@ pub fn check_dependencies(worktree: &zed::Worktree) -> (Vec<String>, Vec<String>
     }
 
     // Check for arduino-cli config (optional)
-    if crate::detection::find_arduino_cli_config(worktree).is_none() {
+    if crate::detection::find_arduino_cli_config(worktree, None).is_none() {
         if auto_create_config {
             warnings.push(
                 "arduino-cli.yaml not found. A minimal config will be auto-created.".to_string(),
@@ -169,12 +169,22 @@ pub fn check_dependencies(worktree: &zed::Worktree) -> (Vec<String>, Vec<String>
 
     // Check for FQBN configuration (critical)
     let mut fqbn_configured = false;
-    if let Ok(lsp_settings) =
-        zed_extension_api::settings::LspSettings::for_worktree("arduino", worktree)
-    {
-        if let Some(binary) = lsp_settings.binary {
-            if let Some(args) = binary.arguments {
-                fqbn_configured = args.iter().any(|arg| arg == "-fqbn");
+
+    // First check settings.fqbn
+    let fqbn_in_settings = crate::utils::get_string_setting(worktree, "fqbn", "");
+    if !fqbn_in_settings.is_empty() {
+        fqbn_configured = true;
+    }
+
+    // Fall back to binary.arguments (backward compatibility)
+    if !fqbn_configured {
+        if let Ok(lsp_settings) =
+            zed_extension_api::settings::LspSettings::for_worktree("arduino", worktree)
+        {
+            if let Some(binary) = lsp_settings.binary {
+                if let Some(args) = binary.arguments {
+                    fqbn_configured = args.iter().any(|arg| arg == "-fqbn");
+                }
             }
         }
     }
@@ -183,7 +193,8 @@ pub fn check_dependencies(worktree: &zed::Worktree) -> (Vec<String>, Vec<String>
         errors.push(
             "FQBN not configured. The extension cannot function without it.\n  \
             Add to .zed/settings.json:\n  \
-            \"lsp\": { \"arduino\": { \"binary\": { \"arguments\": [\"-fqbn\", \"arduino:avr:uno\"] } } }\n  \
+            \"lsp\": { \"arduino\": { \"settings\": { \"fqbn\": \"arduino:avr:uno\" } } }\n  \
+            Or use binary.arguments (legacy): { \"binary\": { \"arguments\": [\"-fqbn\", \"arduino:avr:uno\"] } }\n  \
             Find your board's FQBN with task 'Arduino: List Boards & Ports'"
                 .to_string(),
         );
@@ -294,7 +305,7 @@ fn get_language_server_recovery_steps(auto_download_enabled: bool) -> Vec<&'stat
             "1. Check your internet connection and restart Zed",
             "2. Check GitHub API rate limits: https://api.github.com/rate_limit",
             "3. Try using a custom fork in settings:",
-            "   \"githubRepo\": \"arduino/arduino-language-server\"",
+            "   \"ls\": { \"githubRepo\": \"arduino/arduino-language-server\" }",
         ]
     } else {
         vec![
