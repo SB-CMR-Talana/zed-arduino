@@ -307,6 +307,26 @@ Access via `Cmd+Shift+P` → `tasks: spawn`
 - **Arduino: Show Library Dependencies** - Display library dependency tree
 - **Arduino: List Examples** - Browse example sketches from installed libraries
 
+### Optional Advanced/Diagnostic Tasks
+
+The extension auto-generates `.zed/tasks.json` with 7 additional commented-out tasks for advanced users and troubleshooting:
+
+- **Arduino: Extension Diagnostics** - Comprehensive tool detection report (shows where each tool was found)
+- **Arduino: Clear clangd Cache** - Fix stale IntelliSense issues
+- **Arduino: Clear arduino-cli Cache** - Resolve download/installation problems
+- **Arduino: Show Board Options** - Display all configuration options for your board (CPU speed, flash size, etc.)
+- **Arduino: Show Library Dependencies** - Analyze library dependency trees
+- **Arduino: List Examples** - Browse example sketches
+- **Arduino: Regenerate Tasks File** - Recreate `.zed/tasks.json` with latest templates
+
+**To enable these tasks:**
+1. Open `.zed/tasks.json` in your project
+2. Find the `// === Advanced/Diagnostic Tasks ===` section at the bottom
+3. Uncomment the tasks you want by removing the `//` before each task block
+4. Save the file and reload tasks (Cmd/Ctrl + Shift + P → `task: spawn`)
+
+> **Note:** These tasks are optional and primarily useful for troubleshooting extension issues or exploring advanced board configuration options.
+
 ## Code Snippets
 
 141 snippets covering:

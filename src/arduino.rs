@@ -285,6 +285,51 @@ impl ArduinoExtension {
             }
         }
     }
+
+    /// Get FQBN with priority: user settings > detected board > last detected board
+    fn get_or_detect_fqbn(&mut self, args: &[String], worktree: &zed::Worktree) -> Option<String> {
+        // 1. Check if user specified FQBN in settings
+        let user_fqbn = utils::get_string_setting(worktree, "fqbn", "");
+        if !user_fqbn.is_empty() {
+            return Some(user_fqbn);
+        }
+
+        // 2. Try to detect connected board
+        if let Some(cli_path) = utils::get_arg_value(args, "-cli") {
+            if let Some((fqbn, port, name)) = arduino_cli::detect_connected_board(cli_path) {
+                eprintln!(
+                    "Arduino: Auto-detected board: {} (FQBN: {})",
+                    name.as_deref().unwrap_or("Unknown"),
+                    fqbn
+                );
+                if let Some(ref p) = port {
+                    eprintln!("Arduino: Port: {}", p);
+                }
+                eprintln!("Arduino: Using detected FQBN (not saved to settings)");
+
+                // Save to installation state for future use
+                self.installation_state
+                    .record_detected_board(fqbn.clone(), port, name);
+                if let Err(e) = self.installation_state.save() {
+                    eprintln!("Arduino: Failed to save detected board: {}", e);
+                }
+
+                return Some(fqbn);
+            }
+        }
+
+        // 3. Use last detected board from installation state
+        if let Some(last_fqbn) = self.installation_state.get_last_detected_fqbn() {
+            eprintln!(
+                "Arduino: No board detected, using last detected FQBN: {}",
+                last_fqbn
+            );
+            return Some(last_fqbn.to_string());
+        }
+
+        // 4. No FQBN available
+        None
+    }
 }
 
 impl zed::Extension for ArduinoExtension {
@@ -388,20 +433,6 @@ impl zed::Extension for ArduinoExtension {
         // Get the language server binary path
         let command_path = self.language_server_binary_path(language_server_id, worktree)?;
 
-        // Add FQBN from settings if not already in args
-        if !utils::has_arg(&args, "-fqbn") {
-            let fqbn = utils::get_string_setting(worktree, "fqbn", "");
-            if !fqbn.is_empty() {
-                args.push("-fqbn".to_string());
-                args.push(fqbn);
-            } else {
-                eprintln!("Arduino: Warning - FQBN not configured in settings or binary.arguments");
-                eprintln!(
-                    "Arduino: Add 'fqbn' to lsp.arduino.settings or '-fqbn' to binary.arguments"
-                );
-            }
-        }
-
         // Add clangd path from settings if not already in args
         if !utils::has_arg(&args, "-clangd") {
             let clangd_path = utils::get_string_setting(worktree, "clangd.path", "");
@@ -424,6 +455,20 @@ impl zed::Extension for ArduinoExtension {
             } else {
                 // Fall back to auto-detection/download
                 self.ensure_arduino_cli_available(&mut args, worktree)?;
+            }
+        }
+
+        // Add FQBN from settings/detection if not already in args
+        // NOTE: Must be after arduino-cli is resolved since detection needs it
+        if !utils::has_arg(&args, "-fqbn") {
+            if let Some(fqbn) = self.get_or_detect_fqbn(&args, worktree) {
+                args.push("-fqbn".to_string());
+                args.push(fqbn);
+            } else {
+                eprintln!("Arduino: Warning - FQBN not configured and no board detected");
+                eprintln!(
+                    "Arduino: Add 'fqbn' to lsp.arduino.settings or connect an Arduino board"
+                );
             }
         }
 

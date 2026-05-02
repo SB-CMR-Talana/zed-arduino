@@ -18,6 +18,7 @@ const DEFAULT_REPO: &str = "arduino/arduino-language-server";
 // ============================================================================
 
 /// Find arduino-language-server on system, return info (path, version, source)
+#[allow(dead_code)]
 pub fn find(worktree: &zed::Worktree) -> Option<ToolInfo> {
     // Check PATH
     if let Some(path) = worktree.which("arduino_language_server") {

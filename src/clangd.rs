@@ -249,6 +249,7 @@ pub fn extract_version(path: &str) -> Option<String> {
 }
 
 /// Check if version meets minimum requirements
+#[allow(dead_code)]
 pub fn meets_minimum_version(version: &str) -> bool {
     tools::version_meets_minimum(version, MIN_VERSION)
 }

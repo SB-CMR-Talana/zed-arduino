@@ -181,7 +181,13 @@ pub fn auto_generate_tasks(worktree: &zed::Worktree, state: &InstallationState) 
 }
 
 fn generate_unix_tasks(readme_path: &str) -> String {
-    let fqbn_extract_helper = r#"FQBN=$(grep '\"fqbn\"' .zed/settings.json 2>/dev/null | grep -o '\"[^\"]*\"' | tail -1 | tr -d '\"'); if [ -z \"$FQBN\" ]; then FQBN=$(grep -A 1 '\"-fqbn\"' .zed/settings.json 2>/dev/null | tail -1 | grep -o '\"[^\"]*\"' | tr -d '\"'); fi; if [ -z \"$FQBN\" ]; then echo 'Error: FQBN not found in .zed/settings.json'; echo 'Add \"fqbn\": \"arduino:avr:uno\" to lsp.arduino.settings'; exit 1; fi"#;
+    let fqbn_extract_helper = r#"FQBN=$(grep '\"fqbn\"' .zed/settings.json 2>/dev/null | grep -o '\"[^\"]*\"' | tail -1 | tr -d '\"'); if [ -z \"$FQBN\" ]; then FQBN=$(grep -A 1 '\"-fqbn\"' .zed/settings.json 2>/dev/null | tail -1 | grep -o '\"[^\"]*\"' | tr -d '\"'); fi; if [ -z \"$FQBN\" ]; then echo 'Error: FQBN not found in .zed/settings.json'; echo 'Add \"fqbn\": \"arduino:avr:uno\" to lsp.arduino.settings'; exit 1; fi\"#;
+
+    // Helper to extract compile arguments from settings
+    let compile_args_helper = r#"COMPILE_ARGS=$(grep -A 10 '\"compileArguments\"' .zed/settings.json 2>/dev/null | grep -o '\"[^\"]*\"' | grep -v 'compileArguments' | tr '\n' ' ' | xargs)\"#;
+
+    // Helper to extract upload arguments from settings
+    let upload_args_helper = r#"UPLOAD_ARGS=$(grep -A 10 '\"uploadArguments\"' .zed/settings.json 2>/dev/null | grep -o '\"[^\"]*\"' | grep -v 'uploadArguments' | tr '\n' ' ' | xargs)\"#;
 
     format!(
         r#"{{
@@ -200,17 +206,17 @@ fn generate_unix_tasks(readme_path: &str) -> String {
 
     {{
       "label": "Arduino: Compile & Upload",
-      "command": "{}; PORT=$(grep '\"port\"' .zed/settings.json | grep -o '\"[^\"]*\"' | tail -1 | tr -d '\"'); if [ \"$PORT\" = \"REPLACE_WITH_YOUR_PORT\" ]; then PORT=$(arduino-cli board list --format json 2>/dev/null | grep -o '\"address\":\"[^\"]*\"' | head -1 | cut -d'\"' -f4); fi; if [ -z \"$PORT\" ]; then echo 'Error: Port not configured and auto-detection failed'; exit 1; fi; arduino-cli compile -b \"$FQBN\" . && arduino-cli upload -p \"$PORT\" -b \"$FQBN\" .",
+      "command": "{}; {}; {}; mkdir -p .zed; PORT=$(grep '\"port\"' .zed/settings.json | grep -o '\"[^\"]*\"' | tail -1 | tr -d '\"'); if [ \"$PORT\" = \"REPLACE_WITH_YOUR_PORT\" ]; then PORT=$(arduino-cli board list --format json 2>/dev/null | grep -o '\"address\":\"[^\"]*\"' | head -1 | cut -d'\"' -f4); fi; if [ -z \"$PORT\" ]; then echo 'Error: Port not configured and auto-detection failed'; exit 1; fi; arduino-cli compile -b \"$FQBN\" $COMPILE_ARGS . 2>&1 | tee .zed/last_compile.log && arduino-cli upload -p \"$PORT\" -b \"$FQBN\" $UPLOAD_ARGS .",
       "use_new_terminal": true
     }},
     {{
       "label": "Arduino: Upload (last compile)",
-      "command": "{}; PORT=$(grep '\"port\"' .zed/settings.json | grep -o '\"[^\"]*\"' | tail -1 | tr -d '\"'); if [ \"$PORT\" = \"REPLACE_WITH_YOUR_PORT\" ]; then PORT=$(arduino-cli board list --format json 2>/dev/null | grep -o '\"address\":\"[^\"]*\"' | head -1 | cut -d'\"' -f4); fi; if [ -z \"$PORT\" ]; then echo 'Error: Port not configured and auto-detection failed'; exit 1; fi; arduino-cli upload -p \"$PORT\" -b \"$FQBN\" .",
+      "command": "{}; {}; PORT=$(grep '\"port\"' .zed/settings.json | grep -o '\"[^\"]*\"' | tail -1 | tr -d '\"'); if [ \"$PORT\" = \"REPLACE_WITH_YOUR_PORT\" ]; then PORT=$(arduino-cli board list --format json 2>/dev/null | grep -o '\"address\":\"[^\"]*\"' | head -1 | cut -d'\"' -f4); fi; if [ -z \"$PORT\" ]; then echo 'Error: Port not configured and auto-detection failed'; exit 1; fi; arduino-cli upload -p \"$PORT\" -b \"$FQBN\" $UPLOAD_ARGS .",
       "use_new_terminal": true
     }},
     {{
       "label": "Arduino: Compile",
-      "command": "{}; arduino-cli compile -b \"$FQBN\" .",
+      "command": "{}; {}; mkdir -p .zed; arduino-cli compile -b \"$FQBN\" $COMPILE_ARGS . 2>&1 | tee .zed/last_compile.log",
       "use_new_terminal": true
     }},
     {{
@@ -299,7 +305,7 @@ fn generate_unix_tasks(readme_path: &str) -> String {
 
     {{
       "label": "Arduino: Generate Compilation Database",
-      "command": "{}; arduino-cli compile --fqbn \"$FQBN\" --only-compilation-database .",
+      "command": "{}; COMPILE_DB_PATH=$(grep '\"path\"' .zed/settings.json 2>/dev/null | grep -B 2 'compileDb' | grep '\"path\"' | grep -o '\"[^\"]*\"' | tail -1 | tr -d '\"'); if [ -n \"$COMPILE_DB_PATH\" ]; then mkdir -p \"$(dirname \"$COMPILE_DB_PATH\")\"; arduino-cli compile --fqbn \"$FQBN\" --build-path \"$(dirname \"$COMPILE_DB_PATH\")\" --only-compilation-database . && mv \"$(dirname \"$COMPILE_DB_PATH\")/compile_commands.json\" \"$COMPILE_DB_PATH\" 2>/dev/null || true; else arduino-cli compile --fqbn \"$FQBN\" --only-compilation-database .; fi",
       "use_new_terminal": true
     }},
     {{
@@ -370,8 +376,12 @@ echo '' && echo 'Created .zed/settings.json - Edit the FQBN and port above' && c
 "#,
         readme_path,
         fqbn_extract_helper,
+        compile_args_helper,
+        upload_args_helper,
         fqbn_extract_helper,
+        upload_args_helper,
         fqbn_extract_helper,
+        compile_args_helper,
         fqbn_extract_helper,
         fqbn_extract_helper,
         fqbn_extract_helper,
@@ -398,17 +408,17 @@ fn generate_windows_tasks(readme_path: &str) -> String {
 
     {{
       "label": "Arduino: Compile & Upload",
-      "command": "powershell -NoProfile -Command \"$settings = Get-Content .zed\\settings.json -Raw | ConvertFrom-Json; $fqbn = $settings.lsp.arduino.settings.fqbn; if (-not $fqbn) {{ Write-Error 'FQBN not found in .zed/settings.json'; exit 1 }}; $port = $settings.lsp.arduino.settings.port; if ($port -eq 'REPLACE_WITH_YOUR_PORT' -or -not $port) {{ $boardList = arduino-cli board list --format json | ConvertFrom-Json; if ($boardList.Count -gt 0) {{ $port = $boardList[0].port.address }} }}; if (-not $port) {{ Write-Error 'Port not configured and auto-detection failed'; exit 1 }}; arduino-cli compile -b $fqbn . ; if ($LASTEXITCODE -eq 0) {{ arduino-cli upload -p $port -b $fqbn . }}\"",
+      "command": "powershell -NoProfile -Command \"if (-not (Test-Path .zed)) {{ New-Item -ItemType Directory -Path .zed | Out-Null }}; $settings = Get-Content .zed\\settings.json -Raw | ConvertFrom-Json; $fqbn = $settings.lsp.arduino.settings.fqbn; if (-not $fqbn) {{ Write-Error 'FQBN not found in .zed/settings.json'; exit 1 }}; $port = $settings.lsp.arduino.settings.port; if ($port -eq 'REPLACE_WITH_YOUR_PORT' -or -not $port) {{ $boardList = arduino-cli board list --format json | ConvertFrom-Json; if ($boardList.Count -gt 0) {{ $port = $boardList[0].port.address }} }}; if (-not $port) {{ Write-Error 'Port not configured and auto-detection failed'; exit 1 }}; $compileArgs = @(); if ($settings.lsp.arduino.cli.compileArguments) {{ $compileArgs = $settings.lsp.arduino.cli.compileArguments }}; $uploadArgs = @(); if ($settings.lsp.arduino.cli.uploadArguments) {{ $uploadArgs = $settings.lsp.arduino.cli.uploadArguments }}; $compileCmd = @('compile', '-b', $fqbn) + $compileArgs + @('.'); & arduino-cli $compileCmd 2>&1 | Tee-Object -FilePath .zed\\last_compile.log; if ($LASTEXITCODE -eq 0) {{ $uploadCmd = @('upload', '-p', $port, '-b', $fqbn) + $uploadArgs + @('.'); & arduino-cli $uploadCmd }}\"",
       "use_new_terminal": true
     }},
     {{
       "label": "Arduino: Upload (last compile)",
-      "command": "powershell -NoProfile -Command \"$settings = Get-Content .zed\\settings.json -Raw | ConvertFrom-Json; $fqbn = $settings.lsp.arduino.settings.fqbn; if (-not $fqbn) {{ Write-Error 'FQBN not found in .zed/settings.json'; exit 1 }}; $port = $settings.lsp.arduino.settings.port; if ($port -eq 'REPLACE_WITH_YOUR_PORT' -or -not $port) {{ $boardList = arduino-cli board list --format json | ConvertFrom-Json; if ($boardList.Count -gt 0) {{ $port = $boardList[0].port.address }} }}; if (-not $port) {{ Write-Error 'Port not configured and auto-detection failed'; exit 1 }}; arduino-cli upload -p $port -b $fqbn .\"",
+      "command": "powershell -NoProfile -Command \"$settings = Get-Content .zed\\settings.json -Raw | ConvertFrom-Json; $fqbn = $settings.lsp.arduino.settings.fqbn; if (-not $fqbn) {{ Write-Error 'FQBN not found in .zed/settings.json'; exit 1 }}; $port = $settings.lsp.arduino.settings.port; if ($port -eq 'REPLACE_WITH_YOUR_PORT' -or -not $port) {{ $boardList = arduino-cli board list --format json | ConvertFrom-Json; if ($boardList.Count -gt 0) {{ $port = $boardList[0].port.address }} }}; if (-not $port) {{ Write-Error 'Port not configured and auto-detection failed'; exit 1 }}; $uploadArgs = @(); if ($settings.lsp.arduino.cli.uploadArguments) {{ $uploadArgs = $settings.lsp.arduino.cli.uploadArguments }}; $uploadCmd = @('upload', '-p', $port, '-b', $fqbn) + $uploadArgs + @('.'); & arduino-cli $uploadCmd\"",
       "use_new_terminal": true
     }},
     {{
       "label": "Arduino: Compile",
-      "command": "powershell -NoProfile -Command \"$settings = Get-Content .zed\\settings.json -Raw | ConvertFrom-Json; $fqbn = $settings.lsp.arduino.settings.fqbn; if (-not $fqbn) {{ Write-Error 'FQBN not found in .zed/settings.json'; exit 1 }}; arduino-cli compile -b $fqbn .\"",
+      "command": "powershell -NoProfile -Command \"if (-not (Test-Path .zed)) {{ New-Item -ItemType Directory -Path .zed | Out-Null }}; $settings = Get-Content .zed\\settings.json -Raw | ConvertFrom-Json; $fqbn = $settings.lsp.arduino.settings.fqbn; if (-not $fqbn) {{ Write-Error 'FQBN not found in .zed/settings.json'; exit 1 }}; $compileArgs = @(); if ($settings.lsp.arduino.cli.compileArguments) {{ $compileArgs = $settings.lsp.arduino.cli.compileArguments }}; $compileCmd = @('compile', '-b', $fqbn) + $compileArgs + @('.'); & arduino-cli $compileCmd 2>&1 | Tee-Object -FilePath .zed\\last_compile.log\"",
       "use_new_terminal": true
     }},
     {{
@@ -497,7 +507,7 @@ fn generate_windows_tasks(readme_path: &str) -> String {
 
     {{
       "label": "Arduino: Generate Compilation Database",
-      "command": "powershell -NoProfile -Command \"$settings = Get-Content .zed\\settings.json -Raw | ConvertFrom-Json; $fqbn = $settings.lsp.arduino.settings.fqbn; if (-not $fqbn) {{ Write-Error 'FQBN not found in .zed/settings.json'; exit 1 }}; arduino-cli compile --fqbn $fqbn --only-compilation-database .\"",
+      "command": "powershell -NoProfile -Command \"$settings = Get-Content .zed\\settings.json -Raw | ConvertFrom-Json; $fqbn = $settings.lsp.arduino.settings.fqbn; if (-not $fqbn) {{ Write-Error 'FQBN not found in .zed/settings.json'; exit 1 }}; $compileDbPath = $settings.lsp.arduino.compileDb.path; if ($compileDbPath) {{ $buildDir = Split-Path -Parent $compileDbPath; if (-not (Test-Path $buildDir)) {{ New-Item -ItemType Directory -Path $buildDir -Force | Out-Null }}; arduino-cli compile --fqbn $fqbn --build-path $buildDir --only-compilation-database .; if (Test-Path \"$buildDir\\compile_commands.json\") {{ Move-Item -Path \"$buildDir\\compile_commands.json\" -Destination $compileDbPath -Force }} }} else {{ arduino-cli compile --fqbn $fqbn --only-compilation-database . }}\"",
       "use_new_terminal": true
     }},
     {{

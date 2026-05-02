@@ -283,8 +283,55 @@ pub fn extract_version(path: &str) -> Option<String> {
 }
 
 /// Check if version meets minimum requirements
+#[allow(dead_code)]
 pub fn meets_minimum_version(version: &str) -> bool {
     tools::version_meets_minimum(version, MIN_VERSION)
+}
+
+// ============================================================================
+// Public API: Board Detection
+// ============================================================================
+
+/// Detect connected Arduino boards
+pub fn detect_connected_board(cli_path: &str) -> Option<(String, Option<String>, Option<String>)> {
+    use zed_extension_api::serde_json;
+
+    let output = std::process::Command::new(cli_path)
+        .args(["board", "list", "--format", "json"])
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let stdout = String::from_utf8(output.stdout).ok()?;
+    let json: serde_json::Value = serde_json::from_str(&stdout).ok()?;
+
+    // Parse board list - it's an array of detected boards
+    let boards = json.as_array()?;
+
+    // Get first detected board with matching_boards
+    for board in boards {
+        if let Some(matching_boards) = board
+            .get("matching_boards")
+            .and_then(|v: &serde_json::Value| v.as_array())
+        {
+            if let Some(first_match) = matching_boards.first() {
+                let fqbn = first_match.get("fqbn")?.as_str()?.to_string();
+                let port = board
+                    .get("port")
+                    .and_then(|p: &serde_json::Value| p.get("address"))
+                    .and_then(|a: &serde_json::Value| a.as_str())
+                    .map(String::from);
+                let name = first_match.get("name")?.as_str().map(String::from);
+
+                return Some((fqbn, port, name));
+            }
+        }
+    }
+
+    None
 }
 
 // ============================================================================

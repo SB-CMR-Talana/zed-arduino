@@ -9,6 +9,7 @@ pub struct InstallationState {
     pub arduino_cli: Option<ToolMetadata>,
     pub clangd: Option<ToolMetadata>,
     pub arduino_language_server: Option<ToolMetadata>,
+    pub last_detected_board: Option<DetectedBoard>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -24,6 +25,13 @@ pub struct ToolMetadata {
     pub version: Option<String>,
     pub location: String,
     pub uses_isolated_data: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct DetectedBoard {
+    pub fqbn: String,
+    pub port: Option<String>,
+    pub name: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -109,6 +117,11 @@ impl InstallationState {
         }
     }
 
+    /// Get the last detected board FQBN
+    pub fn get_last_detected_fqbn(&self) -> Option<&str> {
+        self.last_detected_board.as_ref().map(|b| b.fqbn.as_str())
+    }
+
     // ============================================================================
     // Mutators
     // ============================================================================
@@ -171,6 +184,15 @@ impl InstallationState {
         });
     }
 
+    pub fn record_detected_board(
+        &mut self,
+        fqbn: String,
+        port: Option<String>,
+        name: Option<String>,
+    ) {
+        self.last_detected_board = Some(DetectedBoard { fqbn, port, name });
+    }
+
     // ============================================================================
     // JSON Serialization
     // ============================================================================
@@ -199,6 +221,10 @@ impl InstallationState {
             obj["arduino_language_server"] = metadata.to_json();
         }
 
+        if let Some(ref board) = self.last_detected_board {
+            obj["last_detected_board"] = board.to_json();
+        }
+
         obj
     }
 
@@ -220,6 +246,9 @@ impl InstallationState {
             arduino_language_server: json
                 .get("arduino_language_server")
                 .and_then(ToolMetadata::from_json),
+            last_detected_board: json
+                .get("last_detected_board")
+                .and_then(DetectedBoard::from_json),
         }
     }
 }
@@ -272,5 +301,31 @@ impl ToolMetadata {
             location,
             uses_isolated_data,
         })
+    }
+}
+
+impl DetectedBoard {
+    fn to_json(&self) -> serde_json::Value {
+        let mut obj = serde_json::json!({
+            "fqbn": self.fqbn,
+        });
+
+        if let Some(ref port) = self.port {
+            obj["port"] = serde_json::Value::String(port.clone());
+        }
+
+        if let Some(ref name) = self.name {
+            obj["name"] = serde_json::Value::String(name.clone());
+        }
+
+        obj
+    }
+
+    fn from_json(json: &serde_json::Value) -> Option<Self> {
+        let fqbn = json.get("fqbn")?.as_str()?.to_string();
+        let port = json.get("port").and_then(|v| v.as_str()).map(String::from);
+        let name = json.get("name").and_then(|v| v.as_str()).map(String::from);
+
+        Some(Self { fqbn, port, name })
     }
 }

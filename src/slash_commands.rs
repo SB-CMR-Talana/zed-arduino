@@ -867,7 +867,7 @@ pub fn run_libraries_command(
 // Command: /arduino-errors
 // ============================================================================
 
-/// Shows last compilation errors from recent builds
+/// Shows last compilation errors from .zed/last_compile.log
 pub fn run_errors_command(
     worktree: Option<&zed::Worktree>,
 ) -> Result<zed::SlashCommandOutput, String> {
@@ -878,108 +878,250 @@ pub fn run_errors_command(
 
     output.push_str("# Arduino Compilation Errors\n\n");
 
-    // Try to find build output/errors
-    let sketches = sketches::find_directories(worktree);
-
-    if sketches.is_empty() {
-        output.push_str("❌ **No Arduino sketch found in workspace**\n\n");
-        output.push_str("Cannot check for compilation errors without a sketch.\n");
-        return Ok(zed::SlashCommandOutput {
-            text: output,
-            sections,
-        });
-    }
-
-    let sketch_dir = &sketches[0];
     let worktree_root = worktree.root_path();
+    let log_file = format!("{}/.zed/last_compile.log", worktree_root);
 
-    // Check for build directory
-    let build_dir = if sketch_dir == "." {
-        format!("{}/build", worktree_root)
-    } else {
-        format!("{}/{}/build", worktree_root, sketch_dir)
-    };
+    // Check if log file exists
+    if let Ok(contents) = std::fs::read_to_string(&log_file) {
+        let section_start = output.len();
 
-    let section_start = output.len();
-    output.push_str("## Compilation Status\n\n");
+        // Parse the compilation output
+        let (has_errors, errors, warnings, success_msg) = parse_compilation_output(&contents);
 
-    // Check if build directory exists
-    if let Ok(metadata) = std::fs::metadata(&build_dir) {
-        if metadata.is_dir() {
-            output.push_str(&format!("**Build Directory:** `{}`\n", build_dir));
+        if has_errors {
+            output.push_str("## ❌ Compilation Failed\n\n");
 
-            // Look for common log files
-            let log_files = vec![
-                format!("{}/compile.log", build_dir),
-                format!("{}/build.log", build_dir),
-                format!("{}/error.log", build_dir),
-            ];
-
-            let mut found_errors = false;
-            for log_file in log_files {
-                if let Ok(contents) = std::fs::read_to_string(&log_file) {
-                    if !contents.trim().is_empty() {
-                        found_errors = true;
-                        output.push_str(&format!("\n**Log File:** `{}`\n\n", log_file));
-                        output.push_str("```\n");
-                        // Limit output to last 2000 characters to avoid huge outputs
-                        if contents.len() > 2000 {
-                            output.push_str("... (truncated) ...\n\n");
-                            output.push_str(&contents[contents.len() - 2000..]);
-                        } else {
-                            output.push_str(&contents);
-                        }
-                        output.push_str("\n```\n");
-                    }
+            if !errors.is_empty() {
+                output.push_str("### Errors\n\n");
+                for error in &errors {
+                    output.push_str(&format!("```\n{}\n```\n\n", error));
                 }
             }
 
-            if !found_errors {
-                output.push_str("\n✓ **No error logs found in build directory**\n\n");
-                output.push_str("This usually means the last compilation succeeded.\n");
+            if !warnings.is_empty() {
+                output.push_str("### Warnings\n\n");
+                for warning in &warnings {
+                    output.push_str(&format!("- {}\n", warning));
+                }
+                output.push_str("\n");
+            }
+        } else if !warnings.is_empty() {
+            output.push_str("## ✓ Compilation Succeeded (with warnings)\n\n");
+            output.push_str("### Warnings\n\n");
+            for warning in &warnings {
+                output.push_str(&format!("- {}\n", warning));
+            }
+            output.push_str("\n");
+        } else {
+            output.push_str("## ✓ Compilation Succeeded\n\n");
+            if let Some(msg) = success_msg {
+                output.push_str(&format!("{}\n\n", msg));
             }
         }
+
+        sections.push(zed::SlashCommandOutputSection {
+            range: zed::Range {
+                start: section_start as u32,
+                end: output.len() as u32,
+            },
+            label: "Compilation Result".to_string(),
+        });
+
+        // Add full log as collapsible section
+        let section_start = output.len();
+        output.push_str("## Full Compilation Output\n\n");
+        output.push_str("```\n");
+        // Limit to last 3000 characters to avoid huge outputs
+        if contents.len() > 3000 {
+            output.push_str("... (showing last 3000 characters) ...\n\n");
+            output.push_str(&contents[contents.len() - 3000..]);
+        } else {
+            output.push_str(&contents);
+        }
+        output.push_str("\n```\n");
+
+        sections.push(zed::SlashCommandOutputSection {
+            range: zed::Range {
+                start: section_start as u32,
+                end: output.len() as u32,
+            },
+            label: "Full Output".to_string(),
+        });
     } else {
-        output.push_str("⚠️ **No build directory found**\n\n");
-        output.push_str("**Expected location:** `");
-        output.push_str(&build_dir);
-        output.push_str("`\n\n");
-        output.push_str("No recent compilation errors found. Run the 'Arduino: Compile' task to generate error output.\n\n");
+        output.push_str("⚠️ **No compilation log found**\n\n");
+        output.push_str(&format!("**Expected location:** `{}`\n\n", log_file));
+        output.push_str("No recent compilation found. Compilation output is automatically saved when you run:\n\n");
+        output.push_str("- **Arduino: Compile** task\n");
+        output.push_str("- **Arduino: Compile & Upload** task\n\n");
         output.push_str("**To compile your sketch:**\n");
         output.push_str("1. Open command palette (Cmd/Ctrl + Shift + P)\n");
-        output.push_str("2. Run 'Arduino: Compile' task\n");
-        output.push_str("3. Or use: `arduino-cli compile --fqbn <board_fqbn> <sketch_path>`\n");
+        output.push_str("2. Select `task: spawn`\n");
+        output.push_str("3. Choose `Arduino: Compile`\n");
     }
-
-    sections.push(zed::SlashCommandOutputSection {
-        range: zed::Range {
-            start: section_start as u32,
-            end: output.len() as u32,
-        },
-        label: "Compilation Status".to_string(),
-    });
-
-    // Additional help section
-    let section_start = output.len();
-    output.push_str("\n## Troubleshooting Tips\n\n");
-    output.push_str("**Common Arduino Compilation Errors:**\n");
-    output.push_str("- Missing libraries: Install via `arduino-cli lib install <library>`\n");
-    output.push_str("- Wrong board selected: Check FQBN setting\n");
-    output.push_str("- Port conflicts: Close other programs using the serial port\n");
-    output.push_str("- Syntax errors: Check code for typos and missing semicolons\n");
-
-    sections.push(zed::SlashCommandOutputSection {
-        range: zed::Range {
-            start: section_start as u32,
-            end: output.len() as u32,
-        },
-        label: "Troubleshooting Tips".to_string(),
-    });
 
     Ok(zed::SlashCommandOutput {
         text: output,
         sections,
     })
+}
+
+/// Parse arduino-cli compilation output to extract errors and warnings
+fn parse_compilation_output(contents: &str) -> (bool, Vec<String>, Vec<String>, Option<String>) {
+    let mut has_errors = false;
+    let mut errors = Vec::new();
+    let mut warnings = Vec::new();
+    let mut success_msg = None;
+
+    let lines: Vec<&str> = contents.lines().collect();
+    let mut i = 0;
+
+    while i < lines.len() {
+        let line = lines[i];
+
+        // Check for error indicators
+        if line.contains("error:") {
+            has_errors = true;
+            let mut error_block = String::new();
+
+            // Capture the error line and context
+            error_block.push_str(line);
+            error_block.push('\n');
+
+            // Capture following lines that are part of the error (indented or continuation)
+            i += 1;
+            while i < lines.len() {
+                let next_line = lines[i];
+                // Stop at next error/warning or blank line followed by non-indented text
+                if next_line.contains("error:") || next_line.contains("warning:") {
+                    i -= 1; // Back up so outer loop processes this line
+                    break;
+                }
+                if next_line.trim().is_empty() {
+                    if i + 1 < lines.len()
+                        && !lines[i + 1].starts_with(' ')
+                        && !lines[i + 1].trim().is_empty()
+                    {
+                        break;
+                    }
+                }
+                error_block.push_str(next_line);
+                error_block.push('\n');
+                i += 1;
+
+                // Limit error block size
+                if error_block.len() > 500 {
+                    break;
+                }
+            }
+
+            errors.push(error_block.trim_end().to_string());
+        }
+        // Check for warning indicators
+        else if line.contains("warning:") {
+            // Extract just the warning message
+            warnings.push(line.trim().to_string());
+        }
+        // Check for success messages
+        else if line.contains("Sketch uses") || line.contains("Global variables use") {
+            if success_msg.is_none() {
+                success_msg = Some(String::new());
+            }
+            if let Some(ref mut msg) = success_msg {
+                msg.push_str(line.trim());
+                msg.push('\n');
+            }
+        }
+
+        i += 1;
+    }
+
+    (has_errors, errors, warnings, success_msg)
+}
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_compilation_output_success() {
+        let output = "Sketch uses 924 bytes (2%) of program storage space. Maximum is 32256 bytes.\nGlobal variables use 9 bytes (0%) of dynamic memory, leaving 2039 bytes for local variables. Maximum is 2048 bytes.";
+
+        let (has_errors, errors, warnings, success_msg) = parse_compilation_output(output);
+
+        assert!(!has_errors);
+        assert!(errors.is_empty());
+        assert!(warnings.is_empty());
+        assert!(success_msg.is_some());
+        assert!(success_msg.unwrap().contains("924 bytes"));
+    }
+
+    #[test]
+    fn test_parse_compilation_output_with_error() {
+        let output = "sketch.ino:5:1: error: 'digitalWrit' was not declared in this scope\n  digitalWrit(LED_BUILTIN, HIGH);\n  ^~~~~~~~~~~\nsketch.ino:5:1: note: suggested alternative: 'digitalWrite'\n  digitalWrit(LED_BUILTIN, HIGH);\n  ^~~~~~~~~~~\n  digitalWrite";
+
+        let (has_errors, errors, warnings, _success_msg) = parse_compilation_output(output);
+
+        assert!(has_errors);
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].contains("digitalWrit"));
+        assert!(errors[0].contains("was not declared"));
+        assert!(warnings.is_empty());
+    }
+
+    #[test]
+    fn test_parse_compilation_output_with_warning() {
+        let output = "sketch.ino:3:5: warning: unused variable 'x' [-Wunused-variable]\nSketch uses 924 bytes (2%) of program storage space. Maximum is 32256 bytes.";
+
+        let (has_errors, errors, warnings, success_msg) = parse_compilation_output(output);
+
+        assert!(!has_errors);
+        assert!(errors.is_empty());
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].contains("unused variable"));
+        assert!(success_msg.is_some());
+    }
+
+    #[test]
+    fn test_parse_compilation_output_multiple_errors() {
+        let output = "sketch.ino:5:1: error: 'digitalWrit' was not declared\nsketch.ino:10:1: error: expected ';' before 'delay'\ncompilation terminated.";
+
+        let (has_errors, errors, _warnings, _success_msg) = parse_compilation_output(output);
+
+        assert!(has_errors);
+        assert_eq!(errors.len(), 2);
+        assert!(errors[0].contains("digitalWrit"));
+        assert!(errors[1].contains("expected ';'"));
+    }
+
+    #[test]
+    fn test_parse_compilation_output_empty() {
+        let output = "";
+
+        let (has_errors, errors, warnings, success_msg) = parse_compilation_output(output);
+
+        assert!(!has_errors);
+        assert!(errors.is_empty());
+        assert!(warnings.is_empty());
+        assert!(success_msg.is_none());
+    }
+
+    #[test]
+    fn test_parse_compilation_output_mixed() {
+        let output = "sketch.ino:3:5: warning: unused variable 'x'\nsketch.ino:5:1: error: 'foo' was not declared\nsketch.ino:7:2: warning: implicit declaration of function 'bar'\ncompilation terminated.";
+
+        let (has_errors, errors, warnings, _success_msg) = parse_compilation_output(output);
+
+        assert!(has_errors);
+        assert_eq!(errors.len(), 1);
+        assert_eq!(warnings.len(), 2);
+        assert!(errors[0].contains("'foo' was not declared"));
+        assert!(warnings[0].contains("unused variable"));
+        assert!(warnings[1].contains("implicit declaration"));
+    }
 }
 
 // ============================================================================

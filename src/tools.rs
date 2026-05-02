@@ -258,3 +258,88 @@ where
         }
     }
 }
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_version_from_output() {
+        // Test arduino-cli version output
+        assert_eq!(
+            extract_version_from_output(
+                "arduino-cli  Version: 0.35.3 Commit: 95cfd654 Date: 2024-01-18T16:22:52Z"
+            ),
+            Some("0.35.3".to_string())
+        );
+
+        // Test clangd version output
+        assert_eq!(
+            extract_version_from_output("clangd version 14.0.0"),
+            Some("14.0.0".to_string())
+        );
+
+        // Test with trailing comma
+        assert_eq!(
+            extract_version_from_output("tool version 1.2.3,"),
+            Some("1.2.3".to_string())
+        );
+
+        // Test with parentheses
+        assert_eq!(
+            extract_version_from_output("tool 2.0.0)"),
+            Some("2.0.0".to_string())
+        );
+
+        // Test with no version
+        assert_eq!(extract_version_from_output("no version here"), None);
+
+        // Test empty string
+        assert_eq!(extract_version_from_output(""), None);
+    }
+
+    #[test]
+    fn test_version_meets_minimum() {
+        // Equal versions
+        assert!(version_meets_minimum("1.0.0", "1.0.0"));
+
+        // Higher major version
+        assert!(version_meets_minimum("2.0.0", "1.0.0"));
+        assert!(!version_meets_minimum("1.0.0", "2.0.0"));
+
+        // Higher minor version
+        assert!(version_meets_minimum("1.2.0", "1.1.0"));
+        assert!(!version_meets_minimum("1.1.0", "1.2.0"));
+
+        // Higher patch version
+        assert!(version_meets_minimum("1.0.2", "1.0.1"));
+        assert!(!version_meets_minimum("1.0.1", "1.0.2"));
+
+        // Different number of parts
+        assert!(version_meets_minimum("1.0.0.1", "1.0.0"));
+        assert!(version_meets_minimum("1.0.1", "1.0"));
+
+        // Real-world examples
+        assert!(version_meets_minimum("14.0.0", "14.0.0")); // clangd minimum
+        assert!(version_meets_minimum("15.0.0", "14.0.0"));
+        assert!(!version_meets_minimum("13.0.0", "14.0.0"));
+
+        assert!(version_meets_minimum("0.35.3", "0.33.0")); // arduino-cli
+        assert!(version_meets_minimum("1.0.0", "0.33.0"));
+        assert!(!version_meets_minimum("0.32.0", "0.33.0"));
+    }
+
+    #[test]
+    fn test_file_exists() {
+        // Test with a path that should exist
+        assert!(file_exists("."));
+        assert!(file_exists("./src"));
+
+        // Test with a path that shouldn't exist
+        assert!(!file_exists("/this/path/should/not/exist"));
+    }
+}
