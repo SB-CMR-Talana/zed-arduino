@@ -1,13 +1,14 @@
 // Arduino extension for Zed: manages Language Server Protocol integration,
 // tool detection/installation, and automated project setup for Arduino development.
 
-mod cli;
-mod detection;
-mod downloads;
+mod arduino_cli;
+mod clangd;
+mod language_server;
 mod metadata;
 mod setup;
+mod sketches;
+mod tools;
 mod utils;
-mod validation;
 
 use std::collections::HashMap;
 use zed_extension_api::{self as zed, serde_json, settings::LspSettings, LanguageServerId, Result};
@@ -17,8 +18,8 @@ struct ArduinoExtension {
     cached_arduino_cli_path: Option<String>,
     cached_clangd_path: Option<String>,
     // Cached detection results
-    cached_clangd_info: Option<detection::ToolInfo>,
-    cached_arduino_cli_info: Option<detection::ToolInfo>,
+    cached_clangd_info: Option<tools::ToolInfo>,
+    cached_arduino_cli_info: Option<tools::ToolInfo>,
     installation_state: metadata::InstallationState,
 }
 
@@ -58,15 +59,15 @@ impl ArduinoExtension {
             return Ok(ls_path);
         }
 
-        // Use downloads module to get binary (checks PATH, cache, then downloads)
-        let path = downloads::get_language_server_binary(
+        // Use language_server module to get binary (checks PATH, cache, then downloads)
+        let path = language_server::get_or_download(
             language_server_id,
             worktree,
             &mut self.cached_language_server_path,
         )?;
 
         // Track downloaded version
-        if let Some(version) = downloads::extract_language_server_version(&path) {
+        if let Some(version) = language_server::extract_version(&path) {
             self.installation_state
                 .record_language_server_download(&version, path.clone());
         } else {
@@ -80,19 +81,22 @@ impl ArduinoExtension {
         Ok(path)
     }
 
+    // Add clangd arguments from settings to args vector
+    fn add_clangd_arguments(&self, args: &mut Vec<String>, worktree: &zed::Worktree) {
+        let clangd_args = utils::get_string_array_setting(worktree, "clangd.arguments");
+        for arg in clangd_args {
+            args.push(arg);
+        }
+    }
+
     // Find or download clangd and add to args
     fn ensure_clangd_available(&mut self, args: &mut Vec<String>, worktree: &zed::Worktree) {
         // Check cache first - reuse if still valid
         if let Some(ref info) = self.cached_clangd_info {
-            if detection::file_exists(&info.path) {
+            if tools::file_exists(&info.path) {
                 args.push("-clangd".to_string());
                 args.push(info.path.clone());
-
-                // Add custom clangd arguments from settings
-                let clangd_args = utils::get_string_array_setting(worktree, "clangd.arguments");
-                for arg in clangd_args {
-                    args.push(arg);
-                }
+                self.add_clangd_arguments(args, worktree);
                 return;
             } else {
                 // Cached tool no longer exists, clear cache
@@ -100,8 +104,8 @@ impl ArduinoExtension {
             }
         }
 
-        if let Some(info) = detection::find_clangd_info(worktree) {
-            detection::log_tool_info_public("clangd", &info);
+        if let Some(info) = clangd::find(worktree) {
+            tools::log_tool_info("clangd", &info);
             self.installation_state
                 .record_clangd_from_system(info.path.clone(), metadata::ToolSource::ZedManaged);
             if let Err(e) = self.installation_state.save() {
@@ -110,16 +114,11 @@ impl ArduinoExtension {
             args.push("-clangd".to_string());
             args.push(info.path.clone());
             self.cached_clangd_info = Some(info);
-
-            // Add custom clangd arguments from settings
-            let clangd_args = utils::get_string_array_setting(worktree, "clangd.arguments");
-            for arg in clangd_args {
-                args.push(arg);
-            }
+            self.add_clangd_arguments(args, worktree);
         } else {
-            match downloads::get_clangd_binary(worktree, &mut self.cached_clangd_path) {
+            match clangd::get_or_download(worktree, &mut self.cached_clangd_path) {
                 Ok(clangd_path) => {
-                    let version = downloads::extract_clangd_version(&clangd_path)
+                    let version = clangd::extract_version(&clangd_path)
                         .unwrap_or_else(|| "unknown".to_string());
                     self.installation_state
                         .record_clangd_download(&version, clangd_path.clone());
@@ -128,12 +127,7 @@ impl ArduinoExtension {
                     }
                     args.push("-clangd".to_string());
                     args.push(clangd_path);
-
-                    // Add custom clangd arguments from settings
-                    let clangd_args = utils::get_string_array_setting(worktree, "clangd.arguments");
-                    for arg in clangd_args {
-                        args.push(arg);
-                    }
+                    self.add_clangd_arguments(args, worktree);
                 }
                 Err(e) => {
                     eprintln!("\n{}", e);
@@ -152,7 +146,7 @@ impl ArduinoExtension {
     ) -> Result<()> {
         // Check cache first - reuse if still valid
         if let Some(ref info) = self.cached_arduino_cli_info {
-            if detection::file_exists(&info.path) {
+            if tools::file_exists(&info.path) {
                 args.push("-cli".to_string());
                 args.push(info.path.clone());
                 return Ok(());
@@ -162,8 +156,8 @@ impl ArduinoExtension {
             }
         }
 
-        if let Some(info) = detection::find_arduino_cli_info(worktree) {
-            detection::log_tool_info_public("arduino-cli", &info);
+        if let Some(info) = arduino_cli::find(worktree) {
+            tools::log_tool_info("arduino-cli", &info);
             self.installation_state
                 .record_arduino_cli_from_path(info.path.clone());
             if let Err(e) = self.installation_state.save() {
@@ -173,9 +167,9 @@ impl ArduinoExtension {
             args.push(info.path.clone());
             self.cached_arduino_cli_info = Some(info);
         } else {
-            match downloads::get_arduino_cli_binary(worktree, &mut self.cached_arduino_cli_path) {
+            match arduino_cli::get_or_download(worktree, &mut self.cached_arduino_cli_path) {
                 Ok(cli_path) => {
-                    let version = downloads::extract_arduino_cli_version(&cli_path)
+                    let version = arduino_cli::extract_version(&cli_path)
                         .unwrap_or_else(|| "unknown".to_string());
                     self.installation_state
                         .record_arduino_cli_download(&version, cli_path.clone());
@@ -230,7 +224,7 @@ impl ArduinoExtension {
     where
         F: FnOnce(&str),
     {
-        if let Err(e) = cli::validate_fqbn(fqbn) {
+        if let Err(e) = arduino_cli::validate_fqbn(fqbn) {
             eprintln!("Arduino: {}", e);
         } else {
             action(fqbn);
@@ -249,11 +243,13 @@ impl ArduinoExtension {
         if utils::get_setting(worktree, "autoInstallCore", true) {
             if let Some(ref fqbn) = fqbn {
                 self.validate_and_use_fqbn(fqbn, |fqbn| {
-                    if let Some(core_id) = cli::extract_core_id(fqbn) {
+                    if let Some(core_id) = arduino_cli::extract_core_id(fqbn) {
                         if let Some(cli_path) = utils::get_arg_value(args, "-cli") {
-                            if !cli::is_core_installed(cli_path, &core_id) {
+                            if !arduino_cli::is_core_installed(cli_path, &core_id) {
                                 let config_path = utils::get_arg_value(args, "-cli-config");
-                                if cli::install_core(cli_path, &core_id, config_path).is_ok() {
+                                if arduino_cli::install_core(cli_path, &core_id, config_path)
+                                    .is_ok()
+                                {
                                     eprintln!("Arduino: Installed core {} automatically", core_id);
                                 }
                             }
@@ -265,14 +261,14 @@ impl ArduinoExtension {
 
         // Auto-generate compilation database if enabled
         if utils::get_setting(worktree, "autoGenerateCompileDb", true)
-            && !detection::check_compilation_database(worktree)
+            && !sketches::check_compilation_database(worktree)
         {
             if let Some(ref fqbn) = fqbn {
                 self.validate_and_use_fqbn(fqbn, |fqbn| {
                     if let Some(cli_path) = utils::get_arg_value(args, "-cli") {
                         let config_path = utils::get_arg_value(args, "-cli-config");
                         let library_paths = utils::get_library_paths(worktree);
-                        if cli::generate_compilation_database(
+                        if arduino_cli::generate_compile_db(
                             cli_path,
                             fqbn,
                             config_path,
@@ -317,7 +313,7 @@ impl zed::Extension for ArduinoExtension {
             );
         } else {
             // Detect Arduino sketches in the worktree
-            let sketches = detection::find_sketch_directories(worktree);
+            let sketches = sketches::find_directories(worktree);
             if sketches.is_empty() {
                 eprintln!("Arduino: Warning - No sketch directories found in workspace");
                 eprintln!("Arduino: Looking for directories containing .ino or .pde files");
@@ -364,7 +360,7 @@ impl zed::Extension for ArduinoExtension {
         }
 
         // Check dependencies and report any issues
-        validation::report_dependencies(worktree);
+        setup::report_dependencies(worktree);
 
         // Get args and env from LSP settings
         let mut args: Vec<String> = Vec::new();
@@ -411,12 +407,7 @@ impl zed::Extension for ArduinoExtension {
             if !clangd_path.is_empty() {
                 args.push("-clangd".to_string());
                 args.push(clangd_path);
-
-                // Add custom clangd arguments from settings
-                let clangd_args = utils::get_string_array_setting(worktree, "clangd.arguments");
-                for arg in clangd_args {
-                    args.push(arg);
-                }
+                self.add_clangd_arguments(&mut args, worktree);
             } else {
                 // Fall back to auto-detection/download
                 self.ensure_clangd_available(&mut args, worktree);
@@ -449,7 +440,7 @@ impl zed::Extension for ArduinoExtension {
                 args.push("-cli-config".to_string());
                 args.push(isolated_config.to_string());
             } else if let Some(config_path) =
-                detection::find_arduino_cli_config(worktree, utils::get_arg_value(&args, "-cli"))
+                arduino_cli::find_config(worktree, utils::get_arg_value(&args, "-cli"))
             {
                 // Use system config
                 args.push("-cli-config".to_string());

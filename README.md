@@ -70,6 +70,29 @@ The extension provides intelligent, multi-layered tool detection:
 
 Extension validates dependencies on startup and provides detailed recovery steps for any missing tools.
 
+## Supported Boards
+
+The extension is **board-agnostic** and supports any board that arduino-cli supports. Simply configure the FQBN and board manager URL (if needed) in your settings.
+
+### Popular Platforms
+
+| Platform | Example Board | Example FQBN | Board Manager URL |
+|----------|---------------|--------------|-------------------|
+| **Arduino AVR** | Uno, Mega, Nano | `arduino:avr:uno` | Built-in (no URL needed) |
+| **Arduino SAMD** | Zero, MKR series | `arduino:samd:mkrzero` | Built-in (no URL needed) |
+| **ESP32** | ESP32, ESP32-S3 | `esp32:esp32:esp32` | `https://espressif.github.io/arduino-esp32/package_esp32_index.json` |
+| **ESP8266** | NodeMCU, Wemos D1 | `esp8266:esp8266:nodemcuv2` | `https://arduino.esp8266.com/stable/package_esp8266com_index.json` |
+| **RP2040** | Raspberry Pi Pico | `rp2040:rp2040:rpipico` | `https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json` |
+| **STM32** | Blue Pill, Nucleo | `STMicroelectronics:stm32:GenF1` | `https://github.com/stm32duino/BoardManagerFiles/raw/main/package_stmicroelectronics_index.json` |
+
+### Finding Your Board's FQBN
+
+Run the task **"Arduino: List Boards & Ports"** to auto-detect connected boards and their FQBNs, or use **"Arduino: Search Boards"** to find any board by name.
+
+### Adding Third-Party Boards
+
+For boards requiring custom board manager URLs (see table above), add them to your settings. The extension will automatically install the board core when you open a sketch (if `autoInstallCore: true`).
+
 ## Working with Arduino Sketches
 
 ### Sketch Detection
@@ -127,7 +150,7 @@ All settings go in `.zed/settings.json` under `lsp.arduino.settings`:
 | arduinoCliPath | | Path to arduino-cli binary (auto-detected/downloaded if not specified) |
 | arduinoCliConfig | | Path to arduino-cli.yaml config file (auto-detected if not specified) |
 | libraryPaths | | Custom library directories (absolute or relative) |
-| additionalUrls | | Board manager additional URLs (e.g., for ESP32/ESP8266) |
+| additionalUrls | | Board manager additional URLs for third-party boards (ESP32, ESP8266, RP2040, STM32, etc.) |
 | buildPath | | Custom build directory path (default: system temp) |
 | warnings | "none" | Compiler warnings level: "none", "default", "more", "all" |
 | verbose | false | Enable verbose compilation output |
@@ -195,9 +218,11 @@ All settings go in `.zed/settings.json` under `lsp.arduino.settings`:
           "/path/to/libraries",
           "./relative/path"
         ],
-        "additionalUrls": [                           // Optional: for ESP32/ESP8266/etc
+        "additionalUrls": [                           // Optional: for third-party boards
           "https://espressif.github.io/arduino-esp32/package_esp32_index.json",
-          "https://arduino.esp8266.com/stable/package_esp8266com_index.json"
+          "https://arduino.esp8266.com/stable/package_esp8266com_index.json",
+          "https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json",
+          "https://github.com/stm32duino/BoardManagerFiles/raw/main/package_stmicroelectronics_index.json"
         ],
         "buildPath": "./build",                       // Optional: persistent build directory
         "warnings": "all",                            // Optional: "none", "default", "more", "all"
@@ -431,6 +456,20 @@ MIT - see [LICENSE](LICENSE)
 
 ## Credits
 
-- Original [zed-arduino extension](https://github.com/itzderock/zed-arduino) by Derock Xie
-- [Arduino Language Server](https://github.com/arduino/arduino-language-server)
-- [Arduino CLI](https://github.com/arduino/arduino-cli)
+This extension builds upon and integrates several outstanding open-source projects:
+
+### Core Dependencies
+
+- **[Arduino Language Server](https://github.com/arduino/arduino-language-server)** - Provides LSP support for Arduino sketches
+- **[Arduino CLI](https://github.com/arduino/arduino-cli)** - Command-line toolchain for Arduino development
+- **[clangd](https://clangd.llvm.org/)** - Language server providing IntelliSense, powered by the [LLVM Project](https://llvm.org/)
+- **[tree-sitter-arduino](https://github.com/tree-sitter-grammars/tree-sitter-arduino)** - Syntax highlighting grammar for Arduino files
+
+### Tools & Platforms
+
+- **[Zed Editor](https://zed.dev/)** - High-performance editor and extension platform
+- **[Zed Extension API](https://github.com/zed-industries/zed)** - Extension framework and bindings
+
+### Acknowledgments
+
+- **[Original zed-arduino extension](https://github.com/itzderock/zed-arduino)** by [Derock Xie](https://github.com/itzderock) - Foundation for this project

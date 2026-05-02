@@ -1,4 +1,4 @@
-// Utility functions for LSP settings, argument parsing, and paths.
+//! Extension utilities: Zed API helpers for settings access (with nested dot notation), argument parsing, and environment variables.
 
 use zed_extension_api::{self as zed, settings::LspSettings};
 
@@ -30,7 +30,7 @@ fn get_nested_string(settings: &zed::serde_json::Value, path: &str) -> Option<St
     current.as_str().map(String::from)
 }
 
-/// Navigate nested settings using dot notation and extract an array value
+/// Navigate nested settings using dot notation and extract an array of strings
 fn get_nested_array(settings: &zed::serde_json::Value, path: &str) -> Option<Vec<String>> {
     let parts: Vec<&str> = path.split('.').collect();
     let mut current = settings;
@@ -48,7 +48,7 @@ fn get_nested_array(settings: &zed::serde_json::Value, path: &str) -> Option<Vec
     )
 }
 
-/// Get boolean setting from LSP config (supports nested paths like "cli.enabled")
+/// Get boolean setting from LSP config (supports nested paths like "autoCreateConfig")
 pub fn get_setting(worktree: &zed::Worktree, key: &str, default: bool) -> bool {
     LspSettings::for_worktree("arduino", worktree)
         .ok()
@@ -66,7 +66,7 @@ pub fn get_string_setting(worktree: &zed::Worktree, key: &str, default: &str) ->
         .unwrap_or_else(|| default.to_string())
 }
 
-/// Get array of strings setting from LSP config (supports nested paths like "cli.arguments")
+/// Get array of strings setting from LSP config (supports nested paths like "cli.compileArguments")
 pub fn get_string_array_setting(worktree: &zed::Worktree, key: &str) -> Vec<String> {
     LspSettings::for_worktree("arduino", worktree)
         .ok()
