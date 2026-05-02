@@ -269,10 +269,11 @@ Access via `Cmd+Shift+P` → `tasks: spawn`
 
 **Core Workflow:**
 - **Arduino: List Boards & Ports** - Detect connected boards with FQBN and serial port
+- **Arduino: Compile, Upload & Monitor** - Complete workflow: compile, upload, and start serial monitor
+- **Arduino: Compile & Upload** - Compile then upload to board
 - **Arduino: Compile** - Verify sketch compiles without errors
 - **Arduino: Compile (Verbose)** - Compile with detailed compiler output for debugging
 - **Arduino: Upload (last compile)** - Upload previously compiled binary (faster, auto-detects port)
-- **Arduino: Compile & Upload** - Full workflow: compile then upload to board
 - **Arduino: Monitor Serial** - Open serial monitor (auto-detects port if not configured)
 - **Arduino: Show Sketch Size** - Display memory usage and compiled size
 
@@ -280,7 +281,6 @@ Access via `Cmd+Shift+P` → `tasks: spawn`
 
 **Project Management:**
 - **Arduino: Generate Compilation Database** - Create `compile_commands.json` for full IntelliSense
-- **Arduino: Clean Build** - Remove all build artifacts and temporary files
 - **Arduino: Show Extension Status** - Display installation state (which tools downloaded, where stored)
 - **Arduino: Clear clangd Cache** - Fix stale IntelliSense by clearing symbol index
 - **Arduino: Clear arduino-cli Cache** - Resolve download/installation issues
@@ -309,7 +309,7 @@ Access via `Cmd+Shift+P` → `tasks: spawn`
 
 ### Optional Advanced/Diagnostic Tasks
 
-The extension auto-generates `.zed/tasks.json` with 7 additional commented-out tasks for advanced users and troubleshooting:
+The extension auto-generates `.zed/tasks.json` with 9 additional commented-out tasks for advanced users and troubleshooting:
 
 - **Arduino: Extension Diagnostics** - Comprehensive tool detection report (shows where each tool was found)
 - **Arduino: Clear clangd Cache** - Fix stale IntelliSense issues
@@ -318,6 +318,8 @@ The extension auto-generates `.zed/tasks.json` with 7 additional commented-out t
 - **Arduino: Show Library Dependencies** - Analyze library dependency trees
 - **Arduino: List Examples** - Browse example sketches
 - **Arduino: Regenerate Tasks File** - Recreate `.zed/tasks.json` with latest templates
+- **Arduino: Clean Build** - Remove all build artifacts and temporary files
+- **Arduino: Format Code** - Format all `.ino` files in project using clang-format
 
 **To enable these tasks:**
 1. Open `.zed/tasks.json` in your project
@@ -329,12 +331,15 @@ The extension auto-generates `.zed/tasks.json` with 7 additional commented-out t
 
 ## Code Snippets
 
-141 snippets covering:
+148 snippets covering:
 - **Core:** `sketch`, `setup`, `loop`, `serial`, `digital`, `analog`, `millis`
 - **ESP32:** `esp32wifi`, `esp32ble`, `esp32spiffs`, `esp32webserver`, `esp32task`
 - **ESP8266:** `esp8266wifi`, `esp8266webserver`, `esp8266ota`
+- **WiFi/Network:** `wificlient`, `wifiserver`, `wifiudp`, `mqtt`, `httpget`, `websocket`
+- **Bluetooth:** `hc05` (classic Bluetooth), ESP32 BLE
 - **AVR:** `avreeprom`, `avrsleep`, `avrwatchdog`
-- **Sensors:** `mpu6050`, `dht`, `bme280`, `ultrasonic`, `gps`
+- **Sensors:** `mpu6050`, `adxl345`, `dht`, `ds18b20`, `bme280`, `ultrasonic`, `gps`
+- **Communication:** `onewire`, I2C, SPI, software serial
 - **Displays:** `oled`, `lcd`, `tft`
 - **Motors:** `stepper`, `servo`, `dcmotor`
 - **Networking:** `mqtt`, `httpget`, `websocket`, `json`

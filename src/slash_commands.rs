@@ -952,6 +952,7 @@ pub fn run_errors_command(
         output.push_str(&format!("**Expected location:** `{}`\n\n", log_file));
         output.push_str("No recent compilation found. Compilation output is automatically saved when you run:\n\n");
         output.push_str("- **Arduino: Compile** task\n");
+        output.push_str("- **Arduino: Compile, Upload & Monitor** task\n");
         output.push_str("- **Arduino: Compile & Upload** task\n\n");
         output.push_str("**To compile your sketch:**\n");
         output.push_str("1. Open command palette (Cmd/Ctrl + Shift + P)\n");

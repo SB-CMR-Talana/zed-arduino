@@ -13,17 +13,13 @@
   - Windows-specific issues
   - Platform-specific troubleshooting
 
-### Code Enhancements
+### Optional Enhancements
 
-- **Expand Snippet Library** - Add more library-specific snippets:
-  - WiFi libraries (WiFiClient, WiFiServer, WiFiUDP)
-  - Bluetooth/BLE (ESP32 BLE, HC-05)
-  - Popular sensors (DHT22, MPU6050, ADXL345, DS18B20)
-  - Communication protocols (I2C, SPI, OneWire)
-  - Display libraries (Adafruit GFX, U8g2)
-  - Motor control (L298N, TB6612FNG)
+- **Additional Snippet Libraries** (nice-to-have alternatives to existing snippets):
+  - U8g2 display library (alternative to Adafruit GFX/SSD1306)
+  - TB6612FNG motor driver (alternative to L298N)
 
-### Future Enhancements
+## Future Enhancements
 
 ### Automatic Board Detection & FQBN Resolution
 

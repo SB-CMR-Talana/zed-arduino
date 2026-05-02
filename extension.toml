@@ -3,7 +3,7 @@ name = "Arduino Language Support"
 version = "0.0.2"
 schema_version = 1
 authors = ["Derock Xie <derock@derock.dev>", "Talana <s.j.kusters@proton.me>"]
-description = "Complete Arduino development with auto-setup, IntelliSense, board auto-detection, 20 tasks (+7 optional), and 141 snippets."
+description = "Complete Arduino development with auto-setup, IntelliSense, board auto-detection, 20 tasks (+9 optional), and 148 snippets."
 repository = "https://github.com/SB-CMR-Talana/zed-arduino"
 snippets = ["languages/arduino/snippets.json"]
 

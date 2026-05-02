@@ -205,6 +205,11 @@ fn generate_unix_tasks(readme_path: &str) -> String {
     // (Most frequently used tasks)
 
     {{
+      "label": "Arduino: Compile, Upload & Monitor",
+      "command": "{}; {}; {}; mkdir -p .zed; PORT=$(grep '\"port\"' .zed/settings.json | grep -o '\"[^\"]*\"' | tail -1 | tr -d '\"'); if [ \"$PORT\" = \"REPLACE_WITH_YOUR_PORT\" ]; then PORT=$(arduino-cli board list --format json 2>/dev/null | grep -o '\"address\":\"[^\"]*\"' | head -1 | cut -d'\"' -f4); fi; if [ -z \"$PORT\" ]; then echo 'Error: Port not configured and auto-detection failed'; exit 1; fi; BAUD=$(grep '\"baudRate\"' .zed/settings.json | grep -o '[0-9]\\+' | head -1); if [ -z \"$BAUD\" ]; then BAUD=9600; fi; arduino-cli compile -b \"$FQBN\" $COMPILE_ARGS . 2>&1 | tee .zed/last_compile.log && arduino-cli upload -p \"$PORT\" -b \"$FQBN\" $UPLOAD_ARGS . && arduino-cli monitor -p \"$PORT\" --config \"$BAUD\"",
+      "use_new_terminal": true
+    }},
+    {{
       "label": "Arduino: Compile & Upload",
       "command": "{}; {}; {}; mkdir -p .zed; PORT=$(grep '\"port\"' .zed/settings.json | grep -o '\"[^\"]*\"' | tail -1 | tr -d '\"'); if [ \"$PORT\" = \"REPLACE_WITH_YOUR_PORT\" ]; then PORT=$(arduino-cli board list --format json 2>/dev/null | grep -o '\"address\":\"[^\"]*\"' | head -1 | cut -d'\"' -f4); fi; if [ -z \"$PORT\" ]; then echo 'Error: Port not configured and auto-detection failed'; exit 1; fi; arduino-cli compile -b \"$FQBN\" $COMPILE_ARGS . 2>&1 | tee .zed/last_compile.log && arduino-cli upload -p \"$PORT\" -b \"$FQBN\" $UPLOAD_ARGS .",
       "use_new_terminal": true
@@ -326,11 +331,6 @@ fn generate_unix_tasks(readme_path: &str) -> String {
 SETTINGS_EOF
 echo '' && echo 'Created .zed/settings.json - Edit the FQBN and port above' && cat .zed/settings.json",
       "use_new_terminal": true
-    }},
-    {{
-      "label": "Arduino: Clean Build",
-      "command": "rm -rf build compile_commands.json *.elf *.hex *.bin && echo 'Build artifacts cleaned'",
-      "use_new_terminal": false
     }}
 
     // === Advanced/Diagnostic Tasks ===
@@ -370,11 +370,24 @@ echo '' && echo 'Created .zed/settings.json - Edit the FQBN and port above' && c
     //   "label": "Arduino: Regenerate Tasks File",
     //   "command": "echo 'Regenerating .zed/tasks.json...' && rm -f .zed/tasks.json && echo 'Deleted old tasks.json. Restart Zed or run any task to trigger auto-generation.' && echo 'Note: You may need to reload the project (Cmd+Shift+P -> \"zed: reload project\") for changes to take effect.'",
     //   "use_new_terminal": true
+    // }},
+    // {{
+    //   "label": "Arduino: Clean Build",
+    //   "command": "rm -rf build compile_commands.json *.elf *.hex *.bin && echo 'Build artifacts cleaned'",
+    //   "use_new_terminal": false
+    // }},
+    // {{
+    //   "label": "Arduino: Format Code",
+    //   "command": "if command -v clang-format >/dev/null 2>&1; then find . -maxdepth 1 -name '*.ino' -exec clang-format -i {{}} \\; && echo 'Code formatted'; else echo 'Error: clang-format not found. Install it with: sudo apt-get install clang-format (Debian/Ubuntu) or brew install clang-format (macOS)'; exit 1; fi",
+    //   "use_new_terminal": true
     // }}
   ]
 }}
 "#,
         readme_path,
+        fqbn_extract_helper,
+        compile_args_helper,
+        upload_args_helper,
         fqbn_extract_helper,
         compile_args_helper,
         upload_args_helper,
@@ -406,6 +419,11 @@ fn generate_windows_tasks(readme_path: &str) -> String {
     // === Essential Workflow ===
     // (Most frequently used tasks)
 
+    {{
+      "label": "Arduino: Compile, Upload & Monitor",
+      "command": "powershell -NoProfile -Command \"if (-not (Test-Path .zed)) {{ New-Item -ItemType Directory -Path .zed | Out-Null }}; $settings = Get-Content .zed\\settings.json -Raw | ConvertFrom-Json; $fqbn = $settings.lsp.arduino.settings.fqbn; if (-not $fqbn) {{ Write-Error 'FQBN not found in .zed/settings.json'; exit 1 }}; $port = $settings.lsp.arduino.settings.port; if ($port -eq 'REPLACE_WITH_YOUR_PORT' -or -not $port) {{ $boardList = arduino-cli board list --format json | ConvertFrom-Json; if ($boardList.Count -gt 0) {{ $port = $boardList[0].port.address }} }}; if (-not $port) {{ Write-Error 'Port not configured and auto-detection failed'; exit 1 }}; $baud = $settings.lsp.arduino.settings.baudRate; if (-not $baud) {{ $baud = 9600 }}; $compileArgs = @(); if ($settings.lsp.arduino.cli.compileArguments) {{ $compileArgs = $settings.lsp.arduino.cli.compileArguments }}; $uploadArgs = @(); if ($settings.lsp.arduino.cli.uploadArguments) {{ $uploadArgs = $settings.lsp.arduino.cli.uploadArguments }}; $compileCmd = @('compile', '-b', $fqbn) + $compileArgs + @('.'); & arduino-cli $compileCmd 2>&1 | Tee-Object -FilePath .zed\\last_compile.log; if ($LASTEXITCODE -eq 0) {{ $uploadCmd = @('upload', '-p', $port, '-b', $fqbn) + $uploadArgs + @('.'); & arduino-cli $uploadCmd; if ($LASTEXITCODE -eq 0) {{ arduino-cli monitor -p $port --config $baud }} }}\"",
+      "use_new_terminal": true
+    }},
     {{
       "label": "Arduino: Compile & Upload",
       "command": "powershell -NoProfile -Command \"if (-not (Test-Path .zed)) {{ New-Item -ItemType Directory -Path .zed | Out-Null }}; $settings = Get-Content .zed\\settings.json -Raw | ConvertFrom-Json; $fqbn = $settings.lsp.arduino.settings.fqbn; if (-not $fqbn) {{ Write-Error 'FQBN not found in .zed/settings.json'; exit 1 }}; $port = $settings.lsp.arduino.settings.port; if ($port -eq 'REPLACE_WITH_YOUR_PORT' -or -not $port) {{ $boardList = arduino-cli board list --format json | ConvertFrom-Json; if ($boardList.Count -gt 0) {{ $port = $boardList[0].port.address }} }}; if (-not $port) {{ Write-Error 'Port not configured and auto-detection failed'; exit 1 }}; $compileArgs = @(); if ($settings.lsp.arduino.cli.compileArguments) {{ $compileArgs = $settings.lsp.arduino.cli.compileArguments }}; $uploadArgs = @(); if ($settings.lsp.arduino.cli.uploadArguments) {{ $uploadArgs = $settings.lsp.arduino.cli.uploadArguments }}; $compileCmd = @('compile', '-b', $fqbn) + $compileArgs + @('.'); & arduino-cli $compileCmd 2>&1 | Tee-Object -FilePath .zed\\last_compile.log; if ($LASTEXITCODE -eq 0) {{ $uploadCmd = @('upload', '-p', $port, '-b', $fqbn) + $uploadArgs + @('.'); & arduino-cli $uploadCmd }}\"",
@@ -527,11 +545,6 @@ fn generate_windows_tasks(readme_path: &str) -> String {
 }}
 '@ | Out-File -FilePath .zed\\settings.json -Encoding utf8; Write-Host ''; Write-Host 'Created .zed\\settings.json - Edit the FQBN and port above'; Get-Content .zed\\settings.json\"",
       "use_new_terminal": true
-    }},
-    {{
-      "label": "Arduino: Clean Build",
-      "command": "powershell -NoProfile -Command \"Remove-Item -Recurse -Force -ErrorAction SilentlyContinue build,compile_commands.json,*.elf,*.hex,*.bin; Write-Host 'Build artifacts cleaned'\"",
-      "use_new_terminal": false
     }}
 
     // === Advanced/Diagnostic Tasks ===
@@ -570,6 +583,16 @@ fn generate_windows_tasks(readme_path: &str) -> String {
     // {{
     //   "label": "Arduino: Regenerate Tasks File",
     //   "command": "powershell -NoProfile -Command \"Write-Host 'Regenerating .zed\\tasks.json...'; Remove-Item -Force -ErrorAction SilentlyContinue .zed\\tasks.json; Write-Host 'Deleted old tasks.json. Restart Zed or run any task to trigger auto-generation.'; Write-Host 'Note: You may need to reload the project (Cmd+Shift+P -> \"zed: reload project\") for changes to take effect.'\"",
+    //   "use_new_terminal": true
+    // }},
+    // {{
+    //   "label": "Arduino: Clean Build",
+    //   "command": "powershell -NoProfile -Command \"Remove-Item -Recurse -Force -ErrorAction SilentlyContinue build,compile_commands.json,*.elf,*.hex,*.bin; Write-Host 'Build artifacts cleaned'\"",
+    //   "use_new_terminal": false
+    // }},
+    // {{
+    //   "label": "Arduino: Format Code",
+    //   "command": "powershell -NoProfile -Command \"if (Get-Command clang-format -ErrorAction SilentlyContinue) {{ Get-ChildItem -Path . -Filter *.ino -File | ForEach-Object {{ clang-format -i $_.FullName }}; Write-Host 'Code formatted' }} else {{ Write-Error 'clang-format not found. Install it from: https://llvm.org/builds/ or via package manager'; exit 1 }}\"",
     //   "use_new_terminal": true
     // }}
   ]

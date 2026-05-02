@@ -304,6 +304,83 @@
     ],
     "description": "ESP32 WiFi Access Point code"
   },
+  "WiFi Client": {
+    "prefix": "wificlient",
+    "body": [
+      "WiFiClient ${1:client};",
+      "",
+      "if (${1:client}.connect(${2:server}, ${3:80})) {",
+      "\t${1:client}.println(\"GET ${4:/} HTTP/1.1\");",
+      "\t${1:client}.println(\"Host: ${2:server}\");",
+      "\t${1:client}.println(\"Connection: close\");",
+      "\t${1:client}.println();",
+      "\t",
+      "\twhile (${1:client}.connected()) {",
+      "\t\tif (${1:client}.available()) {",
+      "\t\t\tString line = ${1:client}.readStringUntil('\\n');",
+      "\t\t\tSerial.println(line);",
+      "\t\t}",
+      "\t}",
+      "\t${1:client}.stop();",
+      "}",
+      "${0}"
+    ],
+    "description": "WiFi client HTTP request"
+  },
+  "WiFi Server": {
+    "prefix": "wifiserver",
+    "body": [
+      "WiFiServer ${1:server}(${2:80});",
+      "",
+      "// In setup():",
+      "${1:server}.begin();",
+      "",
+      "// In loop():",
+      "WiFiClient ${3:client} = ${1:server}.available();",
+      "if (${3:client}) {",
+      "\twhile (${3:client}.connected()) {",
+      "\t\tif (${3:client}.available()) {",
+      "\t\t\tString request = ${3:client}.readStringUntil('\\r');",
+      "\t\t\t${3:client}.flush();",
+      "\t\t\t",
+      "\t\t\t// Process request",
+      "\t\t\t${3:client}.println(\"HTTP/1.1 200 OK\");",
+      "\t\t\t${3:client}.println(\"Content-Type: text/html\");",
+      "\t\t\t${3:client}.println();",
+      "\t\t\t${3:client}.println(\"${4:<h1>Hello</h1>}\");",
+      "\t\t\tbreak;",
+      "\t\t}",
+      "\t}",
+      "\tdelay(1);",
+      "\t${3:client}.stop();",
+      "}",
+      "${0}"
+    ],
+    "description": "WiFi server setup and client handling"
+  },
+  "WiFi UDP": {
+    "prefix": "wifiudp",
+    "body": [
+      "WiFiUDP ${1:udp};",
+      "",
+      "// In setup():",
+      "${1:udp}.begin(${2:localPort});",
+      "",
+      "// To send:",
+      "${1:udp}.beginPacket(${3:remoteIP}, ${4:remotePort});",
+      "${1:udp}.write(${5:data});",
+      "${1:udp}.endPacket();",
+      "",
+      "// To receive:",
+      "int packetSize = ${1:udp}.parsePacket();",
+      "if (packetSize) {",
+      "\tchar ${6:buffer}[${7:255}];",
+      "\t${1:udp}.read(${6:buffer}, ${7:255});",
+      "}",
+      "${0}"
+    ],
+    "description": "WiFi UDP communication"
+  },
   "ESP32 Web Server": {
     "prefix": "esp32webserver",
     "body": [
@@ -356,6 +433,29 @@
       "${0}"
     ],
     "description": "ESP32 BLE server initialization code"
+  },
+  "HC-05 Bluetooth": {
+    "prefix": "hc05",
+    "body": [
+      "#include <SoftwareSerial.h>",
+      "",
+      "SoftwareSerial ${1:btSerial}(${2:10}, ${3:11}); // RX, TX",
+      "",
+      "// In setup():",
+      "${1:btSerial}.begin(${4:9600});",
+      "Serial.println(\"HC-05 ready\");",
+      "",
+      "// In loop() - Send to Bluetooth:",
+      "${1:btSerial}.println(${5:data});",
+      "",
+      "// In loop() - Receive from Bluetooth:",
+      "if (${1:btSerial}.available()) {",
+      "\tchar ${6:received} = ${1:btSerial}.read();",
+      "\tSerial.print(${6:received});",
+      "}",
+      "${0}"
+    ],
+    "description": "HC-05 Bluetooth module setup"
   },
   "ESP32 SPIFFS": {
     "prefix": "esp32spiffs",
@@ -806,6 +906,48 @@
     ],
     "description": "DHT sensor read operation"
   },
+  "DS18B20 Temperature": {
+    "prefix": "ds18b20",
+    "body": [
+      "#include <OneWire.h>",
+      "#include <DallasTemperature.h>",
+      "",
+      "OneWire ${1:oneWire}(${2:ONE_WIRE_BUS});",
+      "DallasTemperature ${3:sensors}(&${1:oneWire});",
+      "",
+      "// In setup():",
+      "${3:sensors}.begin();",
+      "",
+      "// To read temperature:",
+      "${3:sensors}.requestTemperatures();",
+      "float ${4:temperatureC} = ${3:sensors}.getTempCByIndex(0);",
+      "Serial.print(\"Temperature: \");",
+      "Serial.print(${4:temperatureC});",
+      "Serial.println(\" °C\");",
+      "${0}"
+    ],
+    "description": "DS18B20 OneWire temperature sensor"
+  },
+  "OneWire Protocol": {
+    "prefix": "onewire",
+    "body": [
+      "#include <OneWire.h>",
+      "",
+      "OneWire ${1:oneWire}(${2:pin});",
+      "",
+      "// Reset and select device:",
+      "${1:oneWire}.reset();",
+      "${1:oneWire}.select(${3:address});",
+      "",
+      "// Write byte:",
+      "${1:oneWire}.write(${4:data});",
+      "",
+      "// Read byte:",
+      "uint8_t ${5:data} = ${1:oneWire}.read();",
+      "${0}"
+    ],
+    "description": "OneWire protocol communication"
+  },
   "Ultrasonic HC-SR04": {
     "prefix": "ultrasonic",
     "body": [
@@ -1165,6 +1307,30 @@
       "${0}"
     ],
     "description": "MPU6050 IMU sensor"
+  },
+  "ADXL345 Accelerometer": {
+    "prefix": "adxl345",
+    "body": [
+      "#include <Adafruit_ADXL345_U.h>",
+      "",
+      "Adafruit_ADXL345_Unified ${1:accel} = Adafruit_ADXL345_Unified(${2:12345});",
+      "",
+      "// In setup():",
+      "if (!${1:accel}.begin()) {",
+      "\tSerial.println(\"ADXL345 not detected\");",
+      "\twhile (1);",
+      "}",
+      "${1:accel}.setRange(ADXL345_RANGE_${3|16_G,8_G,4_G,2_G|});",
+      "",
+      "// Read accelerometer:",
+      "sensors_event_t ${4:event};",
+      "${1:accel}.getEvent(&${4:event});",
+      "Serial.print(\"X: \"); Serial.print(${4:event}.acceleration.x);",
+      "Serial.print(\" Y: \"); Serial.print(${4:event}.acceleration.y);",
+      "Serial.print(\" Z: \"); Serial.println(${4:event}.acceleration.z);",
+      "${0}"
+    ],
+    "description": "ADXL345 3-axis accelerometer"
   },
   "BME280 Sensor": {
     "prefix": "bme280",
