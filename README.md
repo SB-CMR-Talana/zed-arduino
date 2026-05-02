@@ -56,7 +56,8 @@ The extension provides intelligent, multi-layered tool detection:
 - Auto-downloads Arduino Language Server, arduino-cli, and clangd
 - Smart data isolation (extension-managed tools store data in extension dir)
 - Auto-detects connected boards (FQBN + port)
-- 23 Arduino tasks (compile, upload, library management, etc.)
+- 20 Arduino tasks (compile, upload, core/library management) + 7 optional diagnostic/advanced tasks
+- 7 AI Assistant slash commands (board, config, sketch, cores, libraries, errors, examples)
 - 141 code snippets (Arduino core, ESP32, ESP8266, AVR, sensors, networking)
 - Custom library path support
 - Version pinning for all toolchain components
@@ -320,6 +321,48 @@ Access via `Cmd+Shift+P` → `tasks: spawn`
 - **Patterns:** `statemachine`, `debounce`, `pid`, `nonblocking`
 
 Type snippet prefix and use autocomplete.
+
+## AI Assistant Slash Commands
+
+Seven slash commands inject Arduino project context into AI Assistant conversations:
+
+**Available Commands:**
+- **`/arduino-board`** - Display current board configuration
+  - Shows FQBN (parsed into vendor/architecture/board)
+  - Port and baud rate settings
+  - Additional board manager URLs
+
+- **`/arduino-config`** - Show extension configuration
+  - Tool paths and versions (arduino-cli, clangd, language server)
+  - Arduino CLI settings and compile arguments
+  - Automation flags status
+
+- **`/arduino-sketch`** - Display sketch structure
+  - Detected sketch directories and files
+  - Custom library paths
+  - Compilation database status
+  - Workspace information
+
+- **`/arduino-cores`** - List installed board cores
+  - Shows all installed board platforms and versions
+  - Helps AI suggest code for available platforms
+
+- **`/arduino-libraries`** - List installed libraries
+  - Shows library search paths (custom and system directories)
+  - Lists all available libraries with versions
+  - Helps AI suggest using libraries you already have
+
+- **`/arduino-errors`** - Show last compilation errors
+  - Displays recent compile errors and warnings
+  - Helps AI assist with debugging (run compile task first)
+
+- **`/arduino-examples`** - List available example sketches
+  - Shows example sketches from installed libraries
+  - Helps discover learning resources
+
+**Usage:** Type the command in the AI Assistant panel. Output is formatted in markdown with collapsible sections for easy reading.
+
+**Note:** These commands must be manually invoked (AI cannot auto-run them currently). They provide static snapshots of your project configuration for context.
 
 ## Data Storage
 

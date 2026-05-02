@@ -7,6 +7,7 @@ mod language_server;
 mod metadata;
 mod setup;
 mod sketches;
+mod slash_commands;
 mod tools;
 mod utils;
 
@@ -509,6 +510,35 @@ impl zed::Extension for ArduinoExtension {
             .unwrap_or_default();
 
         Ok(Some(settings))
+    }
+
+    fn run_slash_command(
+        &self,
+        command: zed::SlashCommand,
+        _args: Vec<String>,
+        worktree: Option<&zed::Worktree>,
+    ) -> Result<zed::SlashCommandOutput, String> {
+        match command.name.as_str() {
+            "arduino-board" => slash_commands::run_board_command(worktree),
+            "arduino-config" => {
+                slash_commands::run_config_command(worktree, &self.installation_state)
+            }
+            "arduino-sketch" => slash_commands::run_sketch_command(worktree),
+            "arduino-cores" => slash_commands::run_cores_command(worktree),
+            "arduino-libraries" => slash_commands::run_libraries_command(worktree),
+            "arduino-errors" => slash_commands::run_errors_command(worktree),
+            "arduino-examples" => slash_commands::run_examples_command(worktree),
+            _ => Err(format!("Unknown command: {}", command.name)),
+        }
+    }
+
+    fn complete_slash_command_argument(
+        &self,
+        _command: zed::SlashCommand,
+        _args: Vec<String>,
+    ) -> Result<Vec<zed::SlashCommandArgumentCompletion>, String> {
+        // Our commands don't take arguments, so no completions needed
+        Ok(Vec::new())
     }
 }
 

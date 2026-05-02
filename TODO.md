@@ -13,27 +13,6 @@
 
 ## Future Enhancements
 
-### Slash Commands for AI Assistant Integration
-
-**Status**: Deferred - limited utility until AI can auto-invoke commands
-
-**Potential Commands**:
-- `/arduino-board` - Show current board config (FQBN, port, detected info)
-- `/arduino-config` - Dump effective configuration (settings, paths, detected tools)
-- `/arduino-sketch` - Show project structure (.ino files, libraries)
-- `/arduino-errors` - Show last compilation errors (if cached)
-- `/arduino-serial <duration>` - Capture serial output for X seconds
-- `/arduino-upload` - Upload to board and show result
-
-**Current Limitations**:
-- Slash commands must be manually invoked by user (AI cannot auto-run them)
-- They return static snapshots, not real-time streams
-- Most functionality already covered by tasks
-
-**To Revisit When**:
-- Zed adds AI agent tool-use capabilities, OR
-- When frequently debugging Arduino issues with AI assistant
-
 ### Multi-Sketch Language Server Support
 
 **Status**: Deferred - blocked by Zed extension API limitations
@@ -53,6 +32,43 @@ Zed extension API adds support for:
 ---
 
 ## Recent Completions
+
+### ✅ Slash Commands for AI Assistant Integration (May 2025)
+
+**Status**: Implemented, tested, and documented - 7 commands total
+
+**Commands Implemented:**
+
+*Context Commands (3):*
+- `/arduino-board` - Show current board config (FQBN, port, detected info)
+- `/arduino-config` - Dump effective configuration (settings, paths, detected tools)
+- `/arduino-sketch` - Show project structure (.ino files, libraries)
+
+*Discovery Commands (4):*
+- `/arduino-cores` - List installed board cores and versions
+- `/arduino-libraries` - List installed libraries + library search paths (custom & system directories)
+- `/arduino-errors` - Show last compilation errors (debugging aid)
+- `/arduino-examples` - List available example sketches from libraries
+
+**Features:**
+- Markdown output with collapsible sections
+- Emoji status indicators (✓, ⚠️)
+- No arguments required (simple invocation)
+- Leverages existing utility functions
+- Clean module separation in `src/slash_commands.rs`
+- JSON parsing for arduino-cli commands
+- Graceful error handling (e.g., no cores/libraries installed)
+- Library search paths displayed (helps AI understand where to find code)
+
+**Documentation:**
+- Added to README.md (features list + dedicated section with all 7 commands)
+- Registered in extension.toml
+
+**Technical Details:**
+- Uses `zed_extension_api` v0.3.0 slash command trait methods
+- Commands declared in `extension.toml`
+- Returns `SlashCommandOutput` with sectioned text
+- Full documentation in `SLASH_COMMANDS.md`
 
 ### ✅ Code Structure Refactoring (May 2025)
 
@@ -114,3 +130,44 @@ pub fn extract_version(path) -> Option<String>
 - Included FQBNs and board manager URLs for each platform
 - Expanded `additionalUrls` examples with all popular board URLs
 - Clarified that extension supports ANY arduino-cli compatible board
+
+### ✅ Task Reorganization (May 2025)
+
+**Reduced from 30 to 27 total tasks (20 active + 7 commented):**
+
+**Removed redundant tasks:**
+- ❌ "Show Sketch Size" (redundant - compile output already shows size)
+- ❌ "Compile (Verbose)" (users can add `-v` flag manually if needed)
+
+**Merged diagnostic tasks:**
+- Combined "Show Extension Status" + "Show Detected Tools" → "Extension Diagnostics"
+- New unified diagnostic command shows both installation state and tool detection
+
+**Commented out by default (7 tasks total):**
+- Extension Diagnostics (troubleshooting)
+- Clear clangd Cache (troubleshooting)
+- Clear arduino-cli Cache (troubleshooting)
+- Show Board Options (very advanced FQBN customization)
+- Show Library Dependencies (debugging only)
+- List Examples (can browse online/in IDE)
+- Regenerate Tasks File (development only)
+
+**Reorganized by usage frequency:**
+1. **Essential Workflow** (5) - Compile & Upload now first (primary workflow)
+2. **Board & Hardware Setup** (2)
+3. **Core Management** (5) - Grouped together
+4. **Library Management** (5) - Grouped together  
+5. **Project Management** (3)
+
+**Benefits:**
+- Cleaner, more focused task list (20 vs 30)
+- Proper workflow ordering (most-used tasks first)
+- Logical grouping (cores separate from libraries)
+- Advanced/diagnostic tasks don't clutter the list
+- Clear section comments for navigation
+- Users can easily uncomment optional tasks if needed
+
+**Documentation:**
+- Updated README.md task count: "20 Arduino tasks (+7 optional)"
+- Updated extension.toml description
+- Updated TODO.md with detailed reorganization notes

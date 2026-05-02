@@ -164,25 +164,26 @@ pub fn auto_generate_tasks(worktree: &zed::Worktree, state: &InstallationState) 
         format!("failed to create .zed directory: {}", e)
     })?;
 
-    // Determine platform-specific cache clear commands
-    let (clear_clangd_cmd, clear_arduino_cli_cmd) = match state.get_platform() {
-        Some(crate::metadata::Platform::Windows) => (
-            r#"echo 'Clearing clangd cache...' && (if exist .cache\clangd rmdir /s /q .cache\clangd) && (if exist %LOCALAPPDATA%\clangd\cache rmdir /s /q %LOCALAPPDATA%\clangd\cache) && echo 'clangd cache cleared'"#,
-            r#"echo 'Clearing arduino-cli cache...' && if exist %LOCALAPPDATA%\arduino-cli\cache rmdir /s /q %LOCALAPPDATA%\arduino-cli\cache && echo 'arduino-cli cache cleared'"#,
-        ),
-        _ => (
-            // Linux/macOS
-            r#"echo 'Clearing clangd cache...' && rm -rf .cache/clangd/ ~/.cache/clangd/ && echo 'clangd cache cleared'"#,
-            r#"echo 'Clearing arduino-cli cache...' && rm -rf ~/.cache/arduino-cli/ ~/Library/Caches/arduino-cli/ && echo 'arduino-cli cache cleared'"#,
-        ),
-    };
-
     let readme_path = get_extension_readme_path();
 
+    // Generate platform-specific tasks
+    let default_tasks = match state.get_platform() {
+        Some(crate::metadata::Platform::Windows) => generate_windows_tasks(&readme_path),
+        _ => generate_unix_tasks(&readme_path),
+    };
+
+    fs::write(&tasks_file, default_tasks).map_err(|e| {
+        eprintln!("Arduino: Failed to write .zed/tasks.json: {}", e);
+        format!("failed to write .zed/tasks.json: {}", e)
+    })?;
+
+    Ok(())
+}
+
+fn generate_unix_tasks(readme_path: &str) -> String {
     let fqbn_extract_helper = r#"FQBN=$(grep '\"fqbn\"' .zed/settings.json 2>/dev/null | grep -o '\"[^\"]*\"' | tail -1 | tr -d '\"'); if [ -z \"$FQBN\" ]; then FQBN=$(grep -A 1 '\"-fqbn\"' .zed/settings.json 2>/dev/null | tail -1 | grep -o '\"[^\"]*\"' | tr -d '\"'); fi; if [ -z \"$FQBN\" ]; then echo 'Error: FQBN not found in .zed/settings.json'; echo 'Add \"fqbn\": \"arduino:avr:uno\" to lsp.arduino.settings'; exit 1; fi"#;
 
-    // Default tasks template
-    let default_tasks = format!(
+    format!(
         r#"{{
   // Arduino Extension Tasks
   // For documentation and customization options, see the extension README:
@@ -194,48 +195,12 @@ pub fn auto_generate_tasks(worktree: &zed::Worktree, state: &InstallationState) 
   // 2. Delete this file and restart Zed (auto-generates), or
   // 3. Delete this file and run any Arduino task (triggers auto-generation)
   "tasks": [
+    // === Essential Workflow ===
+    // (Most frequently used tasks)
+
     {{
-      "label": "Arduino: Generate Settings File",
-      "command": "mkdir -p .zed && arduino-cli board list && echo '' && echo 'Creating settings template in .zed/settings.json' && cat > .zed/settings.json << 'SETTINGS_EOF'
-{{
-  \"lsp\": {{
-    \"arduino\": {{
-      \"settings\": {{
-        \"fqbn\": \"arduino:avr:uno\",
-        \"port\": \"/dev/ttyUSB0\",
-        \"baudRate\": 9600,
-        \"autoCreateConfig\": true
-      }}
-    }}
-  }}
-}}
-SETTINGS_EOF
-echo '' && echo 'Created .zed/settings.json - Edit the FQBN and port above' && cat .zed/settings.json",
-      "use_new_terminal": true
-    }},
-    {{
-      "label": "Arduino: Regenerate Tasks File",
-      "command": "echo 'Regenerating .zed/tasks.json...' && rm -f .zed/tasks.json && echo 'Deleted old tasks.json. Restart Zed or run any task to trigger auto-generation.' && echo 'Note: You may need to reload the project (Cmd+Shift+P -> \"zed: reload project\") for changes to take effect.'",
-      "use_new_terminal": true
-    }},
-    {{
-      "label": "Arduino: List Boards & Ports",
-      "command": "arduino-cli board list",
-      "use_new_terminal": true
-    }},
-    {{
-      "label": "Arduino: Show Board Options",
-      "command": "{}; echo '' && echo 'Current FQBN:' && echo \"  $FQBN\" && echo '' && arduino-cli board details -b \"$FQBN\" && echo '' && echo '=== How to Use FQBN Options ===' && echo 'Base format: vendor:architecture:board' && echo 'With options: vendor:architecture:board:option1=value1,option2=value2' && echo '' && echo 'Example for your board:' && BASE_FQBN=$(echo \"$FQBN\" | cut -d: -f1-3) && echo \"  $BASE_FQBN:UploadSpeed=921600,FlashFreq=80\" && echo '' && echo 'Copy option values from the rightmost column above (e.g., UploadSpeed=921600)' && echo 'Combine multiple options with commas and append to base FQBN'",
-      "use_new_terminal": true
-    }},
-    {{
-      "label": "Arduino: Compile",
-      "command": "{}; arduino-cli compile -b \"$FQBN\" .",
-      "use_new_terminal": true
-    }},
-    {{
-      "label": "Arduino: Compile (Verbose)",
-      "command": "{}; arduino-cli compile -v -b \"$FQBN\" .",
+      "label": "Arduino: Compile & Upload",
+      "command": "{}; PORT=$(grep '\"port\"' .zed/settings.json | grep -o '\"[^\"]*\"' | tail -1 | tr -d '\"'); if [ \"$PORT\" = \"REPLACE_WITH_YOUR_PORT\" ]; then PORT=$(arduino-cli board list --format json 2>/dev/null | grep -o '\"address\":\"[^\"]*\"' | head -1 | cut -d'\"' -f4); fi; if [ -z \"$PORT\" ]; then echo 'Error: Port not configured and auto-detection failed'; exit 1; fi; arduino-cli compile -b \"$FQBN\" . && arduino-cli upload -p \"$PORT\" -b \"$FQBN\" .",
       "use_new_terminal": true
     }},
     {{
@@ -244,8 +209,8 @@ echo '' && echo 'Created .zed/settings.json - Edit the FQBN and port above' && c
       "use_new_terminal": true
     }},
     {{
-      "label": "Arduino: Compile & Upload",
-      "command": "{}; PORT=$(grep '\"port\"' .zed/settings.json | grep -o '\"[^\"]*\"' | tail -1 | tr -d '\"'); if [ \"$PORT\" = \"REPLACE_WITH_YOUR_PORT\" ]; then PORT=$(arduino-cli board list --format json 2>/dev/null | grep -o '\"address\":\"[^\"]*\"' | head -1 | cut -d'\"' -f4); fi; if [ -z \"$PORT\" ]; then echo 'Error: Port not configured and auto-detection failed'; exit 1; fi; arduino-cli compile -b \"$FQBN\" . && arduino-cli upload -p \"$PORT\" -b \"$FQBN\" .",
+      "label": "Arduino: Compile",
+      "command": "{}; arduino-cli compile -b \"$FQBN\" .",
       "use_new_terminal": true
     }},
     {{
@@ -254,23 +219,30 @@ echo '' && echo 'Created .zed/settings.json - Edit the FQBN and port above' && c
       "use_new_terminal": true
     }},
     {{
-      "label": "Arduino: Show Sketch Size",
-      "command": "{}; arduino-cli compile -b \"$FQBN\" .",
+      "label": "Arduino: List Boards & Ports",
+      "command": "arduino-cli board list",
       "use_new_terminal": true
     }},
-    {{
-      "label": "Arduino: Generate Compilation Database",
-      "command": "{}; arduino-cli compile --fqbn \"$FQBN\" --only-compilation-database .",
-      "use_new_terminal": true
-    }},
-    {{
-      "label": "Arduino: Update Core Index",
-      "command": "arduino-cli core update-index",
-      "use_new_terminal": true
-    }},
+
+    // === Board & Hardware Setup ===
+
     {{
       "label": "Arduino: Search Boards",
       "command": "echo 'Enter search term:' && read SEARCH && arduino-cli board listall | grep -i \"$SEARCH\"",
+      "use_new_terminal": true
+    }},
+    {{
+      "label": "Arduino: Board Details",
+      "command": "{}"; arduino-cli board details -b \"$FQBN\"",
+      "use_new_terminal": true
+    }},
+
+    // === Core Management ===
+    // (Arduino board core installation and updates)
+
+    {{
+      "label": "Arduino: Update Core Index",
+      "command": "arduino-cli core update-index",
       "use_new_terminal": true
     }},
     {{
@@ -293,11 +265,10 @@ echo '' && echo 'Created .zed/settings.json - Edit the FQBN and port above' && c
       "command": "arduino-cli core upgrade",
       "use_new_terminal": true
     }},
-    {{
-      "label": "Arduino: Board Details",
-      "command": "{}; arduino-cli board details -b \"$FQBN\"",
-      "use_new_terminal": true
-    }},
+
+    // === Library Management ===
+    // (Arduino library installation and updates)
+
     {{
       "label": "Arduino: Search Libraries",
       "command": "echo 'Enter search term:' && read SEARCH && arduino-cli lib search \"$SEARCH\"",
@@ -323,34 +294,31 @@ echo '' && echo 'Created .zed/settings.json - Edit the FQBN and port above' && c
       "command": "arduino-cli lib upgrade",
       "use_new_terminal": true
     }},
+
+    // === Project Management ===
+
     {{
-      "label": "Arduino: Show Library Dependencies",
-      "command": "echo 'Enter library name:' && read LIBRARY && arduino-cli lib deps \"$LIBRARY\"",
+      "label": "Arduino: Generate Compilation Database",
+      "command": "{}; arduino-cli compile --fqbn \"$FQBN\" --only-compilation-database .",
       "use_new_terminal": true
     }},
     {{
-      "label": "Arduino: List Examples",
-      "command": "arduino-cli lib examples",
-      "use_new_terminal": true
-    }},
-    {{
-      "label": "Arduino: Show Extension Status",
-      "command": "if [ -f installation_state.json ]; then echo 'Extension Installation Status:' && cat installation_state.json | grep -v '{{' | grep -v '}}' || cat installation_state.json; else echo 'No installation state found. Tools may be using system installations.'; fi",
-      "use_new_terminal": true
-    }},
-    {{
-      "label": "Arduino: Show Detected Tools",
-      "command": "echo '=== Arduino Extension Tool Detection ===' && echo '' && echo 'Checking for clangd...' && (command -v clangd >/dev/null 2>&1 && echo \"  Found in PATH: $(command -v clangd)\" && clangd --version 2>&1 | head -1 || echo '  Not found in PATH') && ([ -f ~/.var/app/dev.zed.Zed/data/zed/languages/clangd/*/bin/clangd ] && echo \"  Found Zed Flatpak: $(ls ~/.var/app/dev.zed.Zed/data/zed/languages/clangd/*/bin/clangd 2>/dev/null | head -1)\" && $(ls ~/.var/app/dev.zed.Zed/data/zed/languages/clangd/*/bin/clangd 2>/dev/null | head -1) --version 2>&1 | head -1 || echo '  Zed Flatpak: not found') && echo '' && echo 'Checking for arduino-cli...' && (command -v arduino-cli >/dev/null 2>&1 && echo \"  Found in PATH: $(command -v arduino-cli)\" && arduino-cli version 2>&1 | head -1 || echo '  Not found in PATH') && ([ -f ~/.arduino15/arduino-cli ] && echo '  Found in ~/.arduino15/' || echo '  ~/.arduino15/: not found') && echo '' && echo 'Checking for arduino-cli.yaml config...' && ([ -f ~/.arduino15/arduino-cli.yaml ] && echo '  Found: ~/.arduino15/arduino-cli.yaml' || echo '  Not found in ~/.arduino15/') && ([ -f .arduino-cli.yaml ] && echo '  Found: ./.arduino-cli.yaml' || echo '  Not found in project root') && echo '' && echo 'Environment variables:' && ([ -n \"$CLANGD_PATH\" ] && echo \"  CLANGD_PATH=$CLANGD_PATH\" || echo '  CLANGD_PATH: not set') && ([ -n \"$ARDUINO_CLI_PATH\" ] && echo \"  ARDUINO_CLI_PATH=$ARDUINO_CLI_PATH\" || echo '  ARDUINO_CLI_PATH: not set') && ([ -n \"$ARDUINO_CLI_CONFIG\" ] && echo \"  ARDUINO_CLI_CONFIG=$ARDUINO_CLI_CONFIG\" || echo '  ARDUINO_CLI_CONFIG: not set') && ([ -n \"$ARDUINO_DIRECTORIES_DATA\" ] && echo \"  ARDUINO_DIRECTORIES_DATA=$ARDUINO_DIRECTORIES_DATA\" || echo '  ARDUINO_DIRECTORIES_DATA: not set') && ([ -n \"$ARDUINO_DIRECTORIES_USER\" ] && echo \"  ARDUINO_DIRECTORIES_USER=$ARDUINO_DIRECTORIES_USER\" || echo '  ARDUINO_DIRECTORIES_USER: not set') && echo '' && echo 'Note: The extension checks these locations in priority order:' && echo '  1. Explicit settings (binary.arguments or settings.*)' && echo '  2. Environment variables' && echo '  3. PATH' && echo '  4. Tool-specific locations (shown above)' && echo '  5. Download if not found'",
-      "use_new_terminal": true
-    }},
-    {{
-      "label": "Arduino: Clear clangd Cache",
-      "command": "{}",
-      "use_new_terminal": true
-    }},
-    {{
-      "label": "Arduino: Clear arduino-cli Cache",
-      "command": "{}",
+      "label": "Arduino: Generate Settings File",
+      "command": "mkdir -p .zed && arduino-cli board list && echo '' && echo 'Creating settings template in .zed/settings.json' && cat > .zed/settings.json << 'SETTINGS_EOF'
+{{
+  \"lsp\": {{
+    \"arduino\": {{
+      \"settings\": {{
+        \"fqbn\": \"arduino:avr:uno\",
+        \"port\": \"/dev/ttyUSB0\",
+        \"baudRate\": 9600,
+        \"autoCreateConfig\": true
+      }}
+    }}
+  }}
+}}
+SETTINGS_EOF
+echo '' && echo 'Created .zed/settings.json - Edit the FQBN and port above' && cat .zed/settings.json",
       "use_new_terminal": true
     }},
     {{
@@ -358,6 +326,45 @@ echo '' && echo 'Created .zed/settings.json - Edit the FQBN and port above' && c
       "command": "rm -rf build compile_commands.json *.elf *.hex *.bin && echo 'Build artifacts cleaned'",
       "use_new_terminal": false
     }}
+
+    // === Advanced/Diagnostic Tasks ===
+    // (Uncomment these if needed for troubleshooting or advanced configuration)
+
+    // {{
+    //   "label": "Arduino: Extension Diagnostics",
+    //   "command": "echo '=== Extension Installation Status ===' && echo '' && if [ -f installation_state.json ]; then cat installation_state.json | grep -v '{{' | grep -v '}}' || cat installation_state.json; else echo 'No installation state found. Tools may be using system installations.'; fi && echo '' && echo '' && echo '=== Arduino Extension Tool Detection ===' && echo '' && echo 'Checking for clangd...' && (command -v clangd >/dev/null 2>&1 && echo \"  Found in PATH: $(command -v clangd)\" && clangd --version 2>&1 | head -1 || echo '  Not found in PATH') && ([ -f ~/.var/app/dev.zed.Zed/data/zed/languages/clangd/*/bin/clangd ] && echo \"  Found Zed Flatpak: $(ls ~/.var/app/dev.zed.Zed/data/zed/languages/clangd/*/bin/clangd 2>/dev/null | head -1)\" && $(ls ~/.var/app/dev.zed.Zed/data/zed/languages/clangd/*/bin/clangd 2>/dev/null | head -1) --version 2>&1 | head -1 || echo '  Zed Flatpak: not found') && echo '' && echo 'Checking for arduino-cli...' && (command -v arduino-cli >/dev/null 2>&1 && echo \"  Found in PATH: $(command -v arduino-cli)\" && arduino-cli version 2>&1 | head -1 || echo '  Not found in PATH') && ([ -f ~/.arduino15/arduino-cli ] && echo '  Found in ~/.arduino15/' || echo '  ~/.arduino15/: not found') && echo '' && echo 'Checking for arduino-cli.yaml config...' && ([ -f ~/.arduino15/arduino-cli.yaml ] && echo '  Found: ~/.arduino15/arduino-cli.yaml' || echo '  Not found in ~/.arduino15/') && ([ -f .arduino-cli.yaml ] && echo '  Found: ./.arduino-cli.yaml' || echo '  Not found in project root') && echo '' && echo 'Environment variables:' && ([ -n \"$CLANGD_PATH\" ] && echo \"  CLANGD_PATH=$CLANGD_PATH\" || echo '  CLANGD_PATH: not set') && ([ -n \"$ARDUINO_CLI_PATH\" ] && echo \"  ARDUINO_CLI_PATH=$ARDUINO_CLI_PATH\" || echo '  ARDUINO_CLI_PATH: not set') && ([ -n \"$ARDUINO_CLI_CONFIG\" ] && echo \"  ARDUINO_CLI_CONFIG=$ARDUINO_CLI_CONFIG\" || echo '  ARDUINO_CLI_CONFIG: not set') && ([ -n \"$ARDUINO_DIRECTORIES_DATA\" ] && echo \"  ARDUINO_DIRECTORIES_DATA=$ARDUINO_DIRECTORIES_DATA\" || echo '  ARDUINO_DIRECTORIES_DATA: not set') && ([ -n \"$ARDUINO_DIRECTORIES_USER\" ] && echo \"  ARDUINO_DIRECTORIES_USER=$ARDUINO_DIRECTORIES_USER\" || echo '  ARDUINO_DIRECTORIES_USER: not set') && echo '' && echo 'Note: The extension checks these locations in priority order:' && echo '  1. Explicit settings (binary.arguments or settings.*)' && echo '  2. Environment variables' && echo '  3. PATH' && echo '  4. Tool-specific locations (shown above)' && echo '  5. Download if not found'",
+    //   "use_new_terminal": true
+    // }},
+    // {{
+    //   "label": "Arduino: Clear clangd Cache",
+    //   "command": "{}",
+    //   "use_new_terminal": true
+    // }},
+    // {{
+    //   "label": "Arduino: Clear arduino-cli Cache",
+    //   "command": "{}",
+    //   "use_new_terminal": true
+    // }},
+    // {{
+    //   "label": "Arduino: Show Board Options",
+    //   "command": "{}"; echo '' && echo 'Current FQBN:' && echo \"  $FQBN\" && echo '' && arduino-cli board details -b \"$FQBN\" && echo '' && echo '=== How to Use FQBN Options ===' && echo 'Base format: vendor:architecture:board' && echo 'With options: vendor:architecture:board:option1=value1,option2=value2' && echo '' && echo 'Example for your board:' && BASE_FQBN=$(echo \"$FQBN\" | cut -d: -f1-3) && echo \"  $BASE_FQBN:UploadSpeed=921600,FlashFreq=80\" && echo '' && echo 'Copy option values from the rightmost column above (e.g., UploadSpeed=921600)' && echo 'Combine multiple options with commas and append to base FQBN'",
+    //   "use_new_terminal": true
+    // }},
+    // {{
+    //   "label": "Arduino: Show Library Dependencies",
+    //   "command": "echo 'Enter library name:' && read LIBRARY && arduino-cli lib deps \"$LIBRARY\"",
+    //   "use_new_terminal": true
+    // }},
+    // {{
+    //   "label": "Arduino: List Examples",
+    //   "command": "arduino-cli lib examples",
+    //   "use_new_terminal": true
+    // }},
+    // {{
+    //   "label": "Arduino: Regenerate Tasks File",
+    //   "command": "echo 'Regenerating .zed/tasks.json...' && rm -f .zed/tasks.json && echo 'Deleted old tasks.json. Restart Zed or run any task to trigger auto-generation.' && echo 'Note: You may need to reload the project (Cmd+Shift+P -> \"zed: reload project\") for changes to take effect.'",
+    //   "use_new_terminal": true
+    // }}
   ]
 }}
 "#,
@@ -368,18 +375,198 @@ echo '' && echo 'Created .zed/settings.json - Edit the FQBN and port above' && c
         fqbn_extract_helper,
         fqbn_extract_helper,
         fqbn_extract_helper,
-        fqbn_extract_helper,
-        fqbn_extract_helper,
-        clear_clangd_cmd,
-        clear_arduino_cli_cmd
-    );
+        r#"echo 'Clearing clangd cache...' && rm -rf .cache/clangd/ ~/.cache/clangd/ && echo 'clangd cache cleared'"#,
+        r#"echo 'Clearing arduino-cli cache...' && rm -rf ~/.cache/arduino-cli/ ~/Library/Caches/arduino-cli/ && echo 'arduino-cli cache cleared'"#
+    )
+}
 
-    fs::write(&tasks_file, default_tasks).map_err(|e| {
-        eprintln!("Arduino: Failed to write .zed/tasks.json: {}", e);
-        format!("failed to write .zed/tasks.json: {}", e)
-    })?;
+fn generate_windows_tasks(readme_path: &str) -> String {
+    format!(
+        r#"{{
+  // Arduino Extension Tasks (Windows)
+  // For documentation and customization options, see the extension README:
+  // {}
+  // Or online: https://github.com/SB-CMR-Talana/zed-arduino
+  //
+  // To regenerate this file:
+  // 1. Run the "Arduino: Regenerate Tasks File" task, or
+  // 2. Delete this file and restart Zed (auto-generates), or
+  // 3. Delete this file and run any Arduino task (triggers auto-generation)
+  "tasks": [
+    // === Essential Workflow ===
+    // (Most frequently used tasks)
 
-    Ok(())
+    {{
+      "label": "Arduino: Compile & Upload",
+      "command": "powershell -NoProfile -Command \"$settings = Get-Content .zed\\settings.json -Raw | ConvertFrom-Json; $fqbn = $settings.lsp.arduino.settings.fqbn; if (-not $fqbn) {{ Write-Error 'FQBN not found in .zed/settings.json'; exit 1 }}; $port = $settings.lsp.arduino.settings.port; if ($port -eq 'REPLACE_WITH_YOUR_PORT' -or -not $port) {{ $boardList = arduino-cli board list --format json | ConvertFrom-Json; if ($boardList.Count -gt 0) {{ $port = $boardList[0].port.address }} }}; if (-not $port) {{ Write-Error 'Port not configured and auto-detection failed'; exit 1 }}; arduino-cli compile -b $fqbn . ; if ($LASTEXITCODE -eq 0) {{ arduino-cli upload -p $port -b $fqbn . }}\"",
+      "use_new_terminal": true
+    }},
+    {{
+      "label": "Arduino: Upload (last compile)",
+      "command": "powershell -NoProfile -Command \"$settings = Get-Content .zed\\settings.json -Raw | ConvertFrom-Json; $fqbn = $settings.lsp.arduino.settings.fqbn; if (-not $fqbn) {{ Write-Error 'FQBN not found in .zed/settings.json'; exit 1 }}; $port = $settings.lsp.arduino.settings.port; if ($port -eq 'REPLACE_WITH_YOUR_PORT' -or -not $port) {{ $boardList = arduino-cli board list --format json | ConvertFrom-Json; if ($boardList.Count -gt 0) {{ $port = $boardList[0].port.address }} }}; if (-not $port) {{ Write-Error 'Port not configured and auto-detection failed'; exit 1 }}; arduino-cli upload -p $port -b $fqbn .\"",
+      "use_new_terminal": true
+    }},
+    {{
+      "label": "Arduino: Compile",
+      "command": "powershell -NoProfile -Command \"$settings = Get-Content .zed\\settings.json -Raw | ConvertFrom-Json; $fqbn = $settings.lsp.arduino.settings.fqbn; if (-not $fqbn) {{ Write-Error 'FQBN not found in .zed/settings.json'; exit 1 }}; arduino-cli compile -b $fqbn .\"",
+      "use_new_terminal": true
+    }},
+    {{
+      "label": "Arduino: Monitor Serial",
+      "command": "powershell -NoProfile -Command \"$settings = Get-Content .zed\\settings.json -Raw | ConvertFrom-Json; $port = $settings.lsp.arduino.settings.port; if ($port -eq 'REPLACE_WITH_YOUR_PORT' -or -not $port) {{ $boardList = arduino-cli board list --format json | ConvertFrom-Json; if ($boardList.Count -gt 0) {{ $port = $boardList[0].port.address }} }}; if (-not $port) {{ Write-Error 'Port not configured and auto-detection failed'; exit 1 }}; $baud = $settings.lsp.arduino.settings.baudRate; if (-not $baud) {{ $baud = 9600 }}; arduino-cli monitor -p $port --config $baud\"",
+      "use_new_terminal": true
+    }},
+    {{
+      "label": "Arduino: List Boards & Ports",
+      "command": "arduino-cli board list",
+      "use_new_terminal": true
+    }},
+
+    // === Board & Hardware Setup ===
+
+    {{
+      "label": "Arduino: Search Boards",
+      "command": "powershell -NoProfile -Command \"$search = Read-Host 'Enter search term'; arduino-cli board listall | Select-String -Pattern $search -CaseSensitive:$false\"",
+      "use_new_terminal": true
+    }},
+    {{
+      "label": "Arduino: Board Details",
+      "command": "powershell -NoProfile -Command \"$settings = Get-Content .zed\\settings.json -Raw | ConvertFrom-Json; $fqbn = $settings.lsp.arduino.settings.fqbn; if (-not $fqbn) {{ Write-Error 'FQBN not found in .zed/settings.json'; exit 1 }}; arduino-cli board details -b $fqbn\"",
+      "use_new_terminal": true
+    }},
+
+    // === Core Management ===
+    // (Arduino board core installation and updates)
+
+    {{
+      "label": "Arduino: Update Core Index",
+      "command": "arduino-cli core update-index",
+      "use_new_terminal": true
+    }},
+    {{
+      "label": "Arduino: List Installed Cores",
+      "command": "arduino-cli core list",
+      "use_new_terminal": true
+    }},
+    {{
+      "label": "Arduino: Install Core",
+      "command": "powershell -NoProfile -Command \"arduino-cli core list; Write-Host ''; $core = Read-Host 'Enter core to install (e.g., arduino:avr)'; arduino-cli core install $core\"",
+      "use_new_terminal": true
+    }},
+    {{
+      "label": "Arduino: Uninstall Core",
+      "command": "powershell -NoProfile -Command \"arduino-cli core list; Write-Host ''; $core = Read-Host 'Enter core to uninstall (e.g., arduino:avr)'; arduino-cli core uninstall $core\"",
+      "use_new_terminal": true
+    }},
+    {{
+      "label": "Arduino: Upgrade All Cores",
+      "command": "arduino-cli core upgrade",
+      "use_new_terminal": true
+    }},
+
+    // === Library Management ===
+    // (Arduino library installation and updates)
+
+    {{
+      "label": "Arduino: Search Libraries",
+      "command": "powershell -NoProfile -Command \"$search = Read-Host 'Enter search term'; arduino-cli lib search $search\"",
+      "use_new_terminal": true
+    }},
+    {{
+      "label": "Arduino: List Installed Libraries",
+      "command": "arduino-cli lib list",
+      "use_new_terminal": true
+    }},
+    {{
+      "label": "Arduino: Install Library",
+      "command": "powershell -NoProfile -Command \"arduino-cli lib list; Write-Host ''; $library = Read-Host 'Enter library name to install'; arduino-cli lib install $library\"",
+      "use_new_terminal": true
+    }},
+    {{
+      "label": "Arduino: Uninstall Library",
+      "command": "powershell -NoProfile -Command \"arduino-cli lib list; Write-Host ''; $library = Read-Host 'Enter library name to uninstall'; arduino-cli lib uninstall $library\"",
+      "use_new_terminal": true
+    }},
+    {{
+      "label": "Arduino: Upgrade All Libraries",
+      "command": "arduino-cli lib upgrade",
+      "use_new_terminal": true
+    }},
+
+    // === Project Management ===
+
+    {{
+      "label": "Arduino: Generate Compilation Database",
+      "command": "powershell -NoProfile -Command \"$settings = Get-Content .zed\\settings.json -Raw | ConvertFrom-Json; $fqbn = $settings.lsp.arduino.settings.fqbn; if (-not $fqbn) {{ Write-Error 'FQBN not found in .zed/settings.json'; exit 1 }}; arduino-cli compile --fqbn $fqbn --only-compilation-database .\"",
+      "use_new_terminal": true
+    }},
+    {{
+      "label": "Arduino: Generate Settings File",
+      "command": "powershell -NoProfile -Command \"if (-not (Test-Path .zed)) {{ New-Item -ItemType Directory -Path .zed }}; arduino-cli board list; Write-Host ''; Write-Host 'Creating settings template in .zed\\settings.json'; @'
+{{
+  \"lsp\": {{
+    \"arduino\": {{
+      \"settings\": {{
+        \"fqbn\": \"arduino:avr:uno\",
+        \"port\": \"COM3\",
+        \"baudRate\": 9600,
+        \"autoCreateConfig\": true
+      }}
+    }}
+  }}
+}}
+'@ | Out-File -FilePath .zed\\settings.json -Encoding utf8; Write-Host ''; Write-Host 'Created .zed\\settings.json - Edit the FQBN and port above'; Get-Content .zed\\settings.json\"",
+      "use_new_terminal": true
+    }},
+    {{
+      "label": "Arduino: Clean Build",
+      "command": "powershell -NoProfile -Command \"Remove-Item -Recurse -Force -ErrorAction SilentlyContinue build,compile_commands.json,*.elf,*.hex,*.bin; Write-Host 'Build artifacts cleaned'\"",
+      "use_new_terminal": false
+    }}
+
+    // === Advanced/Diagnostic Tasks ===
+    // (Uncomment these if needed for troubleshooting or advanced configuration)
+
+    // {{
+    //   "label": "Arduino: Extension Diagnostics",
+    //   "command": "powershell -NoProfile -Command \"Write-Host '=== Extension Installation Status ==='; Write-Host ''; if (Test-Path installation_state.json) {{ Get-Content installation_state.json }} else {{ Write-Host 'No installation state found. Tools may be using system installations.' }}; Write-Host ''; Write-Host ''; Write-Host '=== Arduino Extension Tool Detection ==='; Write-Host ''; Write-Host 'Checking for clangd...'; if (Get-Command clangd -ErrorAction SilentlyContinue) {{ Write-Host \"  Found in PATH: $(Get-Command clangd | Select-Object -ExpandProperty Source)\"; & clangd --version | Select-Object -First 1 }} else {{ Write-Host '  Not found in PATH' }}; Write-Host ''; Write-Host 'Checking for arduino-cli...'; if (Get-Command arduino-cli -ErrorAction SilentlyContinue) {{ Write-Host \"  Found in PATH: $(Get-Command arduino-cli | Select-Object -ExpandProperty Source)\"; & arduino-cli version | Select-Object -First 1 }} else {{ Write-Host '  Not found in PATH' }}; if (Test-Path \"$env:LOCALAPPDATA\\Arduino15\\arduino-cli.exe\") {{ Write-Host \"  Found in $env:LOCALAPPDATA\\Arduino15/\" }} else {{ Write-Host \"  $env:LOCALAPPDATA\\Arduino15/: not found\" }}; Write-Host ''; Write-Host 'Checking for arduino-cli.yaml config...'; if (Test-Path \"$env:LOCALAPPDATA\\Arduino15\\arduino-cli.yaml\") {{ Write-Host \"  Found: $env:LOCALAPPDATA\\Arduino15\\arduino-cli.yaml\" }} else {{ Write-Host \"  Not found in $env:LOCALAPPDATA\\Arduino15/\" }}; if (Test-Path .arduino-cli.yaml) {{ Write-Host '  Found: ./.arduino-cli.yaml' }} else {{ Write-Host '  Not found in project root' }}; Write-Host ''; Write-Host 'Environment variables:'; if ($env:CLANGD_PATH) {{ Write-Host \"  CLANGD_PATH=$env:CLANGD_PATH\" }} else {{ Write-Host '  CLANGD_PATH: not set' }}; if ($env:ARDUINO_CLI_PATH) {{ Write-Host \"  ARDUINO_CLI_PATH=$env:ARDUINO_CLI_PATH\" }} else {{ Write-Host '  ARDUINO_CLI_PATH: not set' }}; if ($env:ARDUINO_CLI_CONFIG) {{ Write-Host \"  ARDUINO_CLI_CONFIG=$env:ARDUINO_CLI_CONFIG\" }} else {{ Write-Host '  ARDUINO_CLI_CONFIG: not set' }}; if ($env:ARDUINO_DIRECTORIES_DATA) {{ Write-Host \"  ARDUINO_DIRECTORIES_DATA=$env:ARDUINO_DIRECTORIES_DATA\" }} else {{ Write-Host '  ARDUINO_DIRECTORIES_DATA: not set' }}; if ($env:ARDUINO_DIRECTORIES_USER) {{ Write-Host \"  ARDUINO_DIRECTORIES_USER=$env:ARDUINO_DIRECTORIES_USER\" }} else {{ Write-Host '  ARDUINO_DIRECTORIES_USER: not set' }}; Write-Host ''; Write-Host 'Note: The extension checks these locations in priority order:'; Write-Host '  1. Explicit settings (binary.arguments or settings.*)'; Write-Host '  2. Environment variables'; Write-Host '  3. PATH'; Write-Host '  4. Tool-specific locations (shown above)'; Write-Host '  5. Download if not found'\"",
+    //   "use_new_terminal": true
+    // }},
+    // {{
+    //   "label": "Arduino: Clear clangd Cache",
+    //   "command": "powershell -NoProfile -Command \"Write-Host 'Clearing clangd cache...'; Remove-Item -Recurse -Force -ErrorAction SilentlyContinue .cache\\clangd,\"$env:LOCALAPPDATA\\clangd\\cache\"; Write-Host 'clangd cache cleared'\"",
+    //   "use_new_terminal": true
+    // }},
+    // {{
+    //   "label": "Arduino: Clear arduino-cli Cache",
+    //   "command": "powershell -NoProfile -Command \"Write-Host 'Clearing arduino-cli cache...'; Remove-Item -Recurse -Force -ErrorAction SilentlyContinue \"$env:LOCALAPPDATA\\arduino-cli\\cache\"; Write-Host 'arduino-cli cache cleared'\"",
+    //   "use_new_terminal": true
+    // }},
+    // {{
+    //   "label": "Arduino: Show Board Options",
+    //   "command": "powershell -NoProfile -Command \"$settings = Get-Content .zed\\settings.json -Raw | ConvertFrom-Json; $fqbn = $settings.lsp.arduino.settings.fqbn; if (-not $fqbn) {{ Write-Error 'FQBN not found in .zed/settings.json'; exit 1 }}; Write-Host ''; Write-Host 'Current FQBN:'; Write-Host \"  $fqbn\"; Write-Host ''; arduino-cli board details -b $fqbn; Write-Host ''; Write-Host '=== How to Use FQBN Options ==='; Write-Host 'Base format: vendor:architecture:board'; Write-Host 'With options: vendor:architecture:board:option1=value1,option2=value2'; Write-Host ''; Write-Host 'Example for your board:'; $baseFqbn = ($fqbn -split ':')[0..2] -join ':'; Write-Host \"  $baseFqbn:UploadSpeed=921600,FlashFreq=80\"; Write-Host ''; Write-Host 'Copy option values from the rightmost column above (e.g., UploadSpeed=921600)'; Write-Host 'Combine multiple options with commas and append to base FQBN'\"",
+    //   "use_new_terminal": true
+    // }},
+    // {{
+    //   "label": "Arduino: Show Library Dependencies",
+    //   "command": "powershell -NoProfile -Command \"$library = Read-Host 'Enter library name'; arduino-cli lib deps $library\"",
+    //   "use_new_terminal": true
+    // }},
+    // {{
+    //   "label": "Arduino: List Examples",
+    //   "command": "arduino-cli lib examples",
+    //   "use_new_terminal": true
+    // }},
+    // {{
+    //   "label": "Arduino: Regenerate Tasks File",
+    //   "command": "powershell -NoProfile -Command \"Write-Host 'Regenerating .zed\\tasks.json...'; Remove-Item -Force -ErrorAction SilentlyContinue .zed\\tasks.json; Write-Host 'Deleted old tasks.json. Restart Zed or run any task to trigger auto-generation.'; Write-Host 'Note: You may need to reload the project (Cmd+Shift+P -> \"zed: reload project\") for changes to take effect.'\"",
+    //   "use_new_terminal": true
+    // }}
+  ]
+}}
+"#,
+        readme_path
+    )
 }
 
 /// Create isolated arduino-cli config file that stores all data in extension directory
