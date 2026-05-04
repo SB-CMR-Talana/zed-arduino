@@ -16,44 +16,30 @@ repository = "https://github.com/tree-sitter-grammars/tree-sitter-arduino"
 commit = "017696bdf47ca2b10948c5a511f9ab387722d0f3"
 
 # Slash commands for AI Assistant
-[[slash_commands]]
-name = "arduino-board"
+[slash_commands."arduino-board"]
 description = "Show current Arduino board configuration"
-tooltip_text = "Display FQBN, port, and board information"
 requires_argument = false
 
-[[slash_commands]]
-name = "arduino-config"
+[slash_commands."arduino-config"]
 description = "Show Arduino extension configuration"
-tooltip_text = "Display settings, paths, and tool versions"
 requires_argument = false
 
-[[slash_commands]]
-name = "arduino-sketch"
+[slash_commands."arduino-sketch"]
 description = "Show Arduino sketch structure"
-tooltip_text = "Display .ino files, libraries, and compile database info"
 requires_argument = false
 
-[[slash_commands]]
-name = "arduino-cores"
+[slash_commands."arduino-cores"]
 description = "List installed Arduino board cores"
-tooltip_text = "Show available board platforms and versions"
 requires_argument = false
 
-[[slash_commands]]
-name = "arduino-libraries"
+[slash_commands."arduino-libraries"]
 description = "List installed Arduino libraries"
-tooltip_text = "Show available libraries with versions"
 requires_argument = false
 
-[[slash_commands]]
-name = "arduino-errors"
+[slash_commands."arduino-errors"]
 description = "Show last compilation errors"
-tooltip_text = "Display recent compile errors for debugging"
 requires_argument = false
 
-[[slash_commands]]
-name = "arduino-examples"
+[slash_commands."arduino-examples"]
 description = "List available example sketches"
-tooltip_text = "Show example sketches from installed libraries"
 requires_argument = false
