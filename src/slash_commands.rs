@@ -54,14 +54,11 @@ pub fn run_board_command(
     output.push_str("\n");
 
     // Board manager URLs
-    let urls = utils::get_string_setting(worktree, "cli.additionalUrls", "");
+    let urls = utils::get_string_array_setting(worktree, "additionalUrls");
     if !urls.is_empty() {
         output.push_str("**Additional Board URLs:**\n");
-        for url in urls.split(',') {
-            let trimmed = url.trim();
-            if !trimmed.is_empty() {
-                output.push_str(&format!("  - `{}`\n", trimmed));
-            }
+        for url in urls {
+            output.push_str(&format!("  - `{}`\n", url));
         }
     } else {
         output.push_str("**Additional Board URLs:** None configured\n");
@@ -132,9 +129,12 @@ pub fn run_config_command(
         ));
         output.push_str(&format!("  - Location: `{}`\n", metadata.location));
     }
-    let clangd_args = utils::get_string_setting(worktree, "clangd.arguments", "");
+    let clangd_args = utils::get_string_array_setting(worktree, "clangd.arguments");
     if !clangd_args.is_empty() {
-        output.push_str(&format!("  - Custom Args: `{}`\n", clangd_args));
+        output.push_str("  - Custom Args:\n");
+        for arg in clangd_args {
+            output.push_str(&format!("    - `{}`\n", arg));
+        }
     }
     output.push_str("\n");
 
@@ -172,20 +172,6 @@ pub fn run_config_command(
         output.push_str("**Config File:** Using default location\n");
     }
 
-    let data_dir = utils::get_string_setting(worktree, "cli.dataDir", "");
-    if !data_dir.is_empty() {
-        output.push_str(&format!("**Data Directory:** `{}`\n", data_dir));
-    } else {
-        output.push_str("**Data Directory:** Using default location\n");
-    }
-
-    let user_dir = utils::get_string_setting(worktree, "cli.userDir", "");
-    if !user_dir.is_empty() {
-        output.push_str(&format!("**User Directory:** `{}`\n", user_dir));
-    } else {
-        output.push_str("**User Directory:** Using default location\n");
-    }
-
     output.push_str("\n");
 
     // Compile arguments
@@ -221,20 +207,30 @@ pub fn run_config_command(
     let section_start = output.len();
     output.push_str("\n## Automation Settings\n\n");
 
-    let auto_install = utils::get_setting(worktree, "autoInstallTools", true);
+    let auto_download_cli = utils::get_setting(worktree, "autoDownloadCli", true);
     output.push_str(&format!(
-        "**Auto Install Tools:** {}\n",
-        if auto_install {
+        "**Auto Download arduino-cli:** {}\n",
+        if auto_download_cli {
             "✓ Enabled"
         } else {
             "✗ Disabled"
         }
     ));
 
-    let auto_setup = utils::get_setting(worktree, "autoSetup", true);
+    let auto_create_config = utils::get_setting(worktree, "autoCreateConfig", true);
     output.push_str(&format!(
-        "**Auto Setup Projects:** {}\n",
-        if auto_setup {
+        "**Auto Create arduino-cli.yaml:** {}\n",
+        if auto_create_config {
+            "✓ Enabled"
+        } else {
+            "✗ Disabled"
+        }
+    ));
+
+    let auto_install_core = utils::get_setting(worktree, "autoInstallCore", true);
+    output.push_str(&format!(
+        "**Auto Install Board Core:** {}\n",
+        if auto_install_core {
             "✓ Enabled"
         } else {
             "✗ Disabled"
@@ -251,10 +247,10 @@ pub fn run_config_command(
         }
     ));
 
-    let auto_board_detect = utils::get_setting(worktree, "autoDetectBoard", true);
+    let auto_generate_tasks = utils::get_setting(worktree, "autoGenerateTasks", true);
     output.push_str(&format!(
-        "**Auto Detect Board:** {}\n",
-        if auto_board_detect {
+        "**Auto Generate `.zed/tasks.json`:** {}\n",
+        if auto_generate_tasks {
             "✓ Enabled"
         } else {
             "✗ Disabled"
@@ -337,14 +333,11 @@ pub fn run_sketch_command(
     let section_start = output.len();
     output.push_str("\n## Library Configuration\n\n");
 
-    let library_paths = utils::get_string_setting(worktree, "libraryPaths", "");
+    let library_paths = utils::get_string_array_setting(worktree, "libraryPaths");
     if !library_paths.is_empty() {
         output.push_str("**Custom Library Paths:**\n");
-        for path in library_paths.split(',') {
-            let trimmed = path.trim();
-            if !trimmed.is_empty() {
-                output.push_str(&format!("  - `{}`\n", trimmed));
-            }
+        for path in library_paths {
+            output.push_str(&format!("  - `{}`\n", path));
         }
     } else {
         output.push_str("**Custom Library Paths:** None configured\n");

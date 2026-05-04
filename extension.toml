@@ -7,7 +7,7 @@ description = "Complete Arduino development with auto-setup, IntelliSense, board
 repository = "https://github.com/SB-CMR-Talana/zed-arduino"
 snippets = ["languages/arduino/snippets.json"]
 
-[language_servers.arduino-language-server]
+[language_servers.arduino]
 name = "Arduino Language Server"
 languages = ["Arduino"]
 
