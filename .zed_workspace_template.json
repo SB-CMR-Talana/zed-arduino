@@ -1,0 +1,18 @@
+{
+  "lsp": {
+    "arduino": {
+      "settings": {
+        "sketchPath": "main",
+        "fqbn": "esp32:esp32:esp32",
+        "ls": {
+          "path": "/home/sigrid/code/projects/custom_ALS/arduino-language-server",
+          "arguments": ["-log", "-log-level", "debug", "-logpath", "/tmp"]
+        },
+        "cli": {
+          "path": "/home/sigrid/code/esp/cli/bin/arduino-cli",
+          "config": "/home/sigrid/.arduino15/arduino-cli.yaml"
+        }
+      }
+    }
+  }
+}

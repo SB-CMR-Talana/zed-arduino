@@ -41,13 +41,41 @@
 
 ### Multi-Sketch Language Server Support
 
-**Status**: Deferred - blocked by Zed extension API limitations
+**Status**: Partially implemented - requires manual configuration
 
 **Current Implementation**:
-- ✓ Detects all sketches in workspace recursively
-- ✓ Uses first sketch (by depth, then alphabetically)
-- ✓ Logs detected sketches and warns if multiple found
+- ✓ Sketch path argument (`-sketch-path`) now passed to language server
+- ✓ Shell command approach for detection (using `find` command)
+- ⚠️ Detection currently not working reliably - returns empty results
+- ✓ Users can manually set `sketchPath` in settings as workaround
 - ✓ Documentation guides users to open sketches separately
+
+**Known Issues**:
+- Shell command detection (`find` with `-exec dirname`) returns empty list in WASM
+- Need to debug why `std::process::Command` with `find` doesn't capture output correctly
+- Possible issues: output parsing, relative vs absolute paths, or command execution context
+
+**Workaround**:
+Users should set `sketchPath` in workspace settings:
+```json
+{
+  "lsp": {
+    "arduino": {
+      "settings": {
+        "sketchPath": "main"
+      }
+    }
+  }
+}
+```
+
+**To Fix**:
+- Debug why `find` command output isn't being captured properly
+- Consider alternative approaches:
+  - Try `sh -c` with full pipeline instead of `find -exec`
+  - Add verbose logging to see command output and errors
+  - Test if `Command::output()` works differently in Zed's WASM vs standalone
+- Once working, remove workaround note from documentation
 
 **To Revisit When**:
 Zed extension API adds support for:

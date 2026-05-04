@@ -52,6 +52,10 @@ impl ArduinoExtension {
         // Check for ls.path fallback in settings
         let ls_path = utils::get_string_setting(worktree, "ls.path", "");
         if !ls_path.is_empty() {
+            eprintln!(
+                "Arduino: Using language server from ls.path setting: {}",
+                ls_path
+            );
             self.installation_state
                 .record_language_server_manual(ls_path.clone());
             if let Err(e) = self.installation_state.save() {
@@ -59,6 +63,8 @@ impl ArduinoExtension {
             }
             return Ok(ls_path);
         }
+
+        eprintln!("Arduino: No ls.path specified, attempting to download language server...");
 
         // Use language_server module to get binary (checks PATH, cache, then downloads)
         let path = language_server::get_or_download(
@@ -352,39 +358,19 @@ impl zed::Extension for ArduinoExtension {
         // Check for explicit sketch path override
         let explicit_sketch_path = utils::get_string_setting(worktree, "sketchPath", "");
 
-        if !explicit_sketch_path.is_empty() {
-            eprintln!(
-                "Arduino: Using explicit sketch path from settings: {}",
-                explicit_sketch_path
-            );
+        // Determine sketch path to use (either explicit or detected)
+        let sketch_path_to_use = if !explicit_sketch_path.is_empty() {
+            explicit_sketch_path
         } else {
             // Detect Arduino sketches in the worktree
             let sketches = sketches::find_directories(worktree);
             if sketches.is_empty() {
-                eprintln!("Arduino: Warning - No sketch directories found in workspace");
-                eprintln!("Arduino: Looking for directories containing .ino or .pde files");
-            } else if sketches.len() == 1 {
-                let sketch_path = &sketches[0];
-                if sketch_path == "." {
-                    eprintln!("Arduino: Found sketch in workspace root");
-                } else {
-                    eprintln!("Arduino: Found sketch at: {}", sketch_path);
-                }
+                ".".to_string() // Default to workspace root
             } else {
-                eprintln!("Arduino: Found {} sketches in workspace:", sketches.len());
-                for sketch in &sketches {
-                    eprintln!("  - {}", sketch);
-                }
-                eprintln!(
-                    "Arduino: Using first sketch (shallowest, then alphabetically): {}",
-                    sketches[0]
-                );
-                eprintln!("Arduino: Note - Multiple sketches detected. For best results, open each sketch directory as a separate workspace.");
-                eprintln!(
-                    "Arduino: Tip - Set 'sketchPath' in settings to explicitly choose a sketch."
-                );
+                // Use the first detected sketch (shallowest, then alphabetically)
+                sketches[0].clone()
             }
-        }
+        };
 
         // Detect and record platform on first run
         if self.installation_state.get_platform().is_none() {
@@ -433,6 +419,23 @@ impl zed::Extension for ArduinoExtension {
         // Get the language server binary path
         let command_path = self.language_server_binary_path(language_server_id, worktree)?;
 
+        // Add sketch path argument if not already in args
+        if !utils::has_arg(&args, "-sketch-path") {
+            // Convert relative path to absolute
+            let absolute_sketch_path = if sketch_path_to_use == "." {
+                worktree.root_path()
+            } else {
+                format!("{}/{}", worktree.root_path(), sketch_path_to_use)
+            };
+
+            args.push("-sketch-path".to_string());
+            args.push(absolute_sketch_path.clone());
+            eprintln!(
+                "Arduino: Passing sketch path to language server: {}",
+                absolute_sketch_path
+            );
+        }
+
         // Add clangd path from settings if not already in args
         if !utils::has_arg(&args, "-clangd") {
             let clangd_path = utils::get_string_setting(worktree, "clangd.path", "");
@@ -462,6 +465,10 @@ impl zed::Extension for ArduinoExtension {
         // NOTE: Must be after arduino-cli is resolved since detection needs it
         if !utils::has_arg(&args, "-fqbn") {
             if let Some(fqbn) = self.get_or_detect_fqbn(&args, worktree) {
+                eprintln!(
+                    "Arduino: Adding FQBN to language server arguments: {}",
+                    fqbn
+                );
                 args.push("-fqbn".to_string());
                 args.push(fqbn);
             } else {
@@ -470,6 +477,11 @@ impl zed::Extension for ArduinoExtension {
                     "Arduino: Add 'fqbn' to lsp.arduino.settings or connect an Arduino board"
                 );
             }
+        } else {
+            eprintln!(
+                "Arduino: FQBN already in arguments: {:?}",
+                utils::get_arg_value(&args, "-fqbn")
+            );
         }
 
         // Auto-detect or auto-create arduino-cli config
@@ -535,6 +547,11 @@ impl zed::Extension for ArduinoExtension {
         let mut merged_env: HashMap<String, String> = default_env.into_iter().collect();
         merged_env.extend(env);
         env = merged_env;
+
+        eprintln!("Arduino: Starting language server:");
+        eprintln!("  Command: {}", command_path);
+        eprintln!("  Args: {:?}", args);
+        eprintln!("  Working directory: {}", worktree.root_path());
 
         Ok(zed::Command {
             command: command_path,
