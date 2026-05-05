@@ -1,7 +1,6 @@
 //! Arduino CLI tool: detection, download, validation, and wrapper functions.
 
-use std::process::Command;
-use zed_extension_api::{self as zed, Result};
+use zed_extension_api::{self as zed, process::Command, Result};
 
 use crate::tools::{self, CachedVersionStatus, ToolInfo};
 
@@ -136,18 +135,9 @@ pub fn get_or_download(
     };
 
     if let CachedVersionStatus::Valid =
-        tools::check_cached_version(cached_path, &version_to_use, extract_version, BINARY_NAME)
+        tools::check_cached_version(cached_path, &version_to_use, extract_version)
     {
         return Ok(cached_path.as_ref().unwrap().clone());
-    }
-
-    if let Some(ref version) = version_to_use {
-        eprintln!(
-            "Arduino: Using pinned version {} for arduino-cli...",
-            version
-        );
-    } else {
-        eprintln!("Arduino: Checking for arduino-cli updates...");
     }
 
     let release = if let Some(ref version) = version_to_use {
@@ -221,10 +211,7 @@ pub fn get_or_download(
         tools::cleanup_old_versions("arduino-cli-", &version_dir)?;
 
         zed::make_file_executable(&binary_path)?;
-        eprintln!(
-            "Arduino: arduino-cli v{} installed successfully",
-            release.version
-        );
+        eprintln!("Arduino: arduino-cli v{} installed", release.version);
     }
 
     let absolute_path = tools::get_absolute_path(&binary_path)?;
@@ -251,12 +238,9 @@ pub fn validate(path: &str) -> Result<String, String> {
         .output()
         .map_err(|e| format!("Failed to run arduino-cli: {}", e))?;
 
-    if !output.status.success() {
+    if output.status != Some(0) {
         return Err("arduino-cli version command failed".to_string());
     }
-
-    let _stdout = String::from_utf8(output.stdout)
-        .map_err(|_| "Invalid UTF-8 in arduino-cli output".to_string())?;
 
     let version = extract_version(path).ok_or("Could not extract version")?;
 
@@ -274,11 +258,11 @@ pub fn validate(path: &str) -> Result<String, String> {
 pub fn extract_version(path: &str) -> Option<String> {
     let output = Command::new(path).arg("version").output().ok()?;
 
-    if !output.status.success() {
+    if output.status != Some(0) {
         return None;
     }
 
-    let stdout = String::from_utf8(output.stdout).ok()?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
     tools::extract_version_from_output(&stdout)
 }
 
@@ -296,16 +280,16 @@ pub fn meets_minimum_version(version: &str) -> bool {
 pub fn detect_connected_board(cli_path: &str) -> Option<(String, Option<String>, Option<String>)> {
     use zed_extension_api::serde_json;
 
-    let output = std::process::Command::new(cli_path)
+    let output = Command::new(cli_path)
         .args(["board", "list", "--format", "json"])
         .output()
         .ok()?;
 
-    if !output.status.success() {
+    if output.status != Some(0) {
         return None;
     }
 
-    let stdout = String::from_utf8(output.stdout).ok()?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
     let json: serde_json::Value = serde_json::from_str(&stdout).ok()?;
 
     // Parse board list - it's an array of detected boards
@@ -343,7 +327,6 @@ pub fn find_config(worktree: &zed::Worktree, cli_path: Option<&str>) -> Option<S
     // 1. Check environment variable override
     if let Some(path) = crate::utils::get_env(worktree, "ARDUINO_CLI_CONFIG") {
         if tools::file_exists(&path) {
-            eprintln!("Arduino: Using config from ARDUINO_CLI_CONFIG: {}", path);
             return Some(path);
         }
     }
@@ -352,10 +335,6 @@ pub fn find_config(worktree: &zed::Worktree, cli_path: Option<&str>) -> Option<S
     if let Some(data_dir) = crate::utils::get_env(worktree, "ARDUINO_DIRECTORIES_DATA") {
         let config_path = format!("{}/arduino-cli.yaml", data_dir);
         if tools::file_exists(&config_path) {
-            eprintln!(
-                "Arduino: Found config in ARDUINO_DIRECTORIES_DATA: {}",
-                config_path
-            );
             return Some(config_path);
         }
     }
@@ -363,10 +342,6 @@ pub fn find_config(worktree: &zed::Worktree, cli_path: Option<&str>) -> Option<S
     if let Some(user_dir) = crate::utils::get_env(worktree, "ARDUINO_DIRECTORIES_USER") {
         let config_path = format!("{}/arduino-cli.yaml", user_dir);
         if tools::file_exists(&config_path) {
-            eprintln!(
-                "Arduino: Found config in ARDUINO_DIRECTORIES_USER: {}",
-                config_path
-            );
             return Some(config_path);
         }
     }
@@ -378,7 +353,6 @@ pub fn find_config(worktree: &zed::Worktree, cli_path: Option<&str>) -> Option<S
             let config_near_cli = parent.join("arduino-cli.yaml");
             if tools::file_exists(&config_near_cli.to_string_lossy()) {
                 let path = config_near_cli.to_string_lossy().to_string();
-                eprintln!("Arduino: Found config near arduino-cli binary: {}", path);
                 return Some(path);
             }
         }
@@ -460,9 +434,8 @@ pub fn is_core_installed(cli_path: &str, core_id: &str) -> bool {
         .arg("list")
         .output()
         .map(|output| {
-            String::from_utf8_lossy(&output.stdout)
-                .lines()
-                .any(|line| line.starts_with(core_id))
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            stdout.lines().any(|line| line.starts_with(core_id))
         })
         .unwrap_or(false)
 }
@@ -472,17 +445,17 @@ pub fn install_core(cli_path: &str, core_id: &str, config_path: Option<&str>) ->
     eprintln!("Arduino: Installing core {}...", core_id);
 
     let mut cmd = Command::new(cli_path);
-    cmd.arg("core").arg("install").arg(core_id);
+    cmd = cmd.arg("core").arg("install").arg(core_id);
 
     if let Some(config) = config_path {
-        cmd.arg("--config-file").arg(config);
+        cmd = cmd.arg("--config-file").arg(config);
     }
 
     let output = cmd
         .output()
         .map_err(|e| format!("failed to run arduino-cli core install: {}", e))?;
 
-    if !output.status.success() {
+    if output.status != Some(0) {
         let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(format!("arduino-cli core install failed: {}", stderr));
     }
@@ -491,41 +464,42 @@ pub fn install_core(cli_path: &str, core_id: &str, config_path: Option<&str>) ->
 }
 
 /// Generate compile_commands.json for clangd (10-30 seconds)
+/// Used by smart auto-generation at LSP startup and by compile tasks
 pub fn generate_compile_db(
     cli_path: &str,
     fqbn: &str,
     config_path: Option<&str>,
     library_paths: &[String],
+    sketch_path: &str,
     worktree: &zed::Worktree,
 ) -> Result<()> {
-    let worktree_root = worktree.root_path();
-
     let mut cmd = Command::new(cli_path);
-    cmd.arg("compile")
+    cmd = cmd
+        .arg("compile")
         .arg("--fqbn")
         .arg(fqbn)
         .arg("--only-compilation-database")
-        .arg(worktree_root);
+        .arg(sketch_path);
 
     if let Some(config) = config_path {
-        cmd.arg("--config-file").arg(config);
+        cmd = cmd.arg("--config-file").arg(config);
     }
 
     if !library_paths.is_empty() {
-        cmd.arg("--libraries").arg(library_paths.join(","));
+        cmd = cmd.arg("--libraries").arg(library_paths.join(","));
     }
 
     // Add custom arduino-cli compile arguments from settings
     let custom_args = crate::utils::get_string_array_setting(worktree, "cli.compileArguments");
     for arg in custom_args {
-        cmd.arg(arg);
+        cmd = cmd.arg(arg);
     }
 
     let output = cmd
         .output()
         .map_err(|e| format!("failed to run arduino-cli compile: {}", e))?;
 
-    if !output.status.success() {
+    if output.status != Some(0) {
         let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(format!("arduino-cli compile failed: {}", stderr));
     }

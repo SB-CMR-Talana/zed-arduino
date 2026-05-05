@@ -7,6 +7,46 @@ description = "Complete Arduino development with auto-setup, IntelliSense, board
 repository = "https://github.com/SB-CMR-Talana/zed-arduino"
 snippets = ["languages/arduino/snippets.json"]
 
+# Capabilities: Transparent declaration of all commands the extension executes
+# Note: arduino-cli, clangd, and arduino-language-server paths can be:
+#   - Downloaded by extension to work directory
+#   - Found on system PATH
+#   - User-configured via settings
+capabilities = [
+  # Sketch detection: find Arduino source files (.ino, .pde) in workspace
+  { kind = "process:exec", command = "find", args = ["**", "-type", "f", "(", "-name", "*.ino", "-o", "-name", "*.pde", ")", "-print"] },
+
+  # Arduino CLI: version checking
+  { kind = "process:exec", command = "**/arduino-cli", args = ["version"] },
+
+  # Arduino CLI: board detection and management
+  { kind = "process:exec", command = "**/arduino-cli", args = ["board", "list", "--format", "json"] },
+
+  # Arduino CLI: core (board support package) management
+  { kind = "process:exec", command = "**/arduino-cli", args = ["core", "list"] },
+  { kind = "process:exec", command = "**/arduino-cli", args = ["core", "list", "--format", "json"] },
+  { kind = "process:exec", command = "**/arduino-cli", args = ["core", "install", "**"] },
+  { kind = "process:exec", command = "**/arduino-cli", args = ["core", "install", "**", "--config-file", "**"] },
+
+  # Arduino CLI: library management (for slash commands)
+  { kind = "process:exec", command = "**/arduino-cli", args = ["lib", "list", "--format", "json"] },
+
+  # Arduino CLI: compile database generation (for IntelliSense)
+  # Note: Users can add custom arguments via 'cli.compileArguments' setting
+  { kind = "process:exec", command = "**/arduino-cli", args = ["compile", "--fqbn", "**", "--only-compilation-database", "**"] },
+  { kind = "process:exec", command = "**/arduino-cli", args = ["compile", "--fqbn", "**", "--only-compilation-database", "**", "--config-file", "**"] },
+  { kind = "process:exec", command = "**/arduino-cli", args = ["compile", "--fqbn", "**", "--only-compilation-database", "**", "--libraries", "**"] },
+  { kind = "process:exec", command = "**/arduino-cli", args = ["compile", "--fqbn", "**", "--only-compilation-database", "**", "--config-file", "**", "--libraries", "**"] },
+  # General compile with custom user arguments
+  { kind = "process:exec", command = "**/arduino-cli", args = ["compile", "**"] },
+
+  # Clangd: version checking
+  { kind = "process:exec", command = "**/clangd", args = ["--version"] },
+
+  # Arduino Language Server: version checking
+  { kind = "process:exec", command = "**/arduino-language-server", args = ["--version"] },
+]
+
 [language_servers.arduino]
 name = "Arduino Language Server"
 languages = ["Arduino"]

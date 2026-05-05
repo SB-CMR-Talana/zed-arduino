@@ -1,8 +1,7 @@
 //! Clangd tool: detection, download, and validation.
 
 use std::fs;
-use std::process::Command;
-use zed_extension_api::{self as zed, Result};
+use zed_extension_api::{self as zed, process::Command, Result};
 
 use crate::tools::{self, CachedVersionStatus, ToolInfo};
 
@@ -116,15 +115,9 @@ pub fn get_or_download(
     };
 
     if let CachedVersionStatus::Valid =
-        tools::check_cached_version(cached_path, &version_to_use, extract_version, BINARY_NAME)
+        tools::check_cached_version(cached_path, &version_to_use, extract_version)
     {
         return Ok(cached_path.as_ref().unwrap().clone());
-    }
-
-    if let Some(version) = &version_to_use {
-        eprintln!("Arduino: Using pinned version {} for clangd...", version);
-    } else {
-        eprintln!("Arduino: clangd not found, downloading...");
     }
 
     let release = if let Some(ref version) = version_to_use {
@@ -191,7 +184,7 @@ pub fn get_or_download(
         zed::make_file_executable(&binary_path)?;
 
         tools::cleanup_old_versions("clangd-", &version_dir)?;
-        eprintln!("Arduino: clangd v{} installed successfully", version);
+        eprintln!("Arduino: clangd v{} installed", version);
     }
 
     let absolute_path = tools::get_absolute_path(&binary_path)?;
@@ -217,12 +210,9 @@ pub fn validate(path: &str) -> Result<String, String> {
         .output()
         .map_err(|e| format!("Failed to run clangd: {}", e))?;
 
-    if !output.status.success() {
+    if output.status != Some(0) {
         return Err("clangd --version command failed".to_string());
     }
-
-    let _stdout = String::from_utf8(output.stdout)
-        .map_err(|_| "Invalid UTF-8 in clangd output".to_string())?;
 
     let version = extract_version(path).ok_or("Could not extract version")?;
 
@@ -240,11 +230,11 @@ pub fn validate(path: &str) -> Result<String, String> {
 pub fn extract_version(path: &str) -> Option<String> {
     let output = Command::new(path).arg("--version").output().ok()?;
 
-    if !output.status.success() {
+    if output.status != Some(0) {
         return None;
     }
 
-    let stdout = String::from_utf8(output.stdout).ok()?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
     tools::extract_version_from_output(&stdout)
 }
 

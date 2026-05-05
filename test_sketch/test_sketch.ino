@@ -2,7 +2,6 @@
  * Basic Arduino Test Sketch
  * Tests LED blinking and serial communication
  */
-
 // Pin definitions
 const int LED_PIN = 13;
 const int ANALOG_PIN = A0;
@@ -55,3 +54,4 @@ void loop() {
     Serial.println(analogValue);
   }
 }
+

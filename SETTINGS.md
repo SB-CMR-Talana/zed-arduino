@@ -45,7 +45,11 @@ Use this structure in your Zed `settings.json` (global) or `.zed/settings.json` 
 
         // Project settings
         "fqbn": "",                  // Fully Qualified Board Name, e.g. "arduino:avr:uno"
-        "sketchPath": "",            // Optional explicit sketch directory path
+        "sketchPath": "",            // Optional: override auto-detected sketch path
+                                      // The extension automatically detects sketches using .ino/.pde files
+                                      // Set this only if you want to use a specific sketch when multiple exist
+                                      // Example: "my_sketch" or "examples/Blink"
+                                      // If not set and no sketches detected, uses workspace root (.)
         "libraryPaths": [],            // Optional custom Arduino library paths
         "additionalUrls": [],          // Optional board manager URLs for third-party platforms
 
@@ -57,9 +61,8 @@ Use this structure in your Zed `settings.json` (global) or `.zed/settings.json` 
         // Automation
         "autoCreateConfig": true,
         "autoInstallCore": true,
-        "autoGenerateCompileDb": true,
-        "autoDownloadCli": true,
-        "autoGenerateTasks": true
+        // Note: autoGenerateCompileDb is deprecated - database now generated at compile time
+        "autoDownloadCli": true
       }
     }
   }

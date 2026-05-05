@@ -10,6 +10,7 @@ pub struct InstallationState {
     pub clangd: Option<ToolMetadata>,
     pub arduino_language_server: Option<ToolMetadata>,
     pub last_detected_board: Option<DetectedBoard>,
+    pub compile_db_fqbn: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -122,6 +123,11 @@ impl InstallationState {
         self.last_detected_board.as_ref().map(|b| b.fqbn.as_str())
     }
 
+    /// Get the FQBN used for the last compile database generation
+    pub fn get_compile_db_fqbn(&self) -> Option<&str> {
+        self.compile_db_fqbn.as_deref()
+    }
+
     // ============================================================================
     // Mutators
     // ============================================================================
@@ -193,6 +199,11 @@ impl InstallationState {
         self.last_detected_board = Some(DetectedBoard { fqbn, port, name });
     }
 
+    /// Record the FQBN used for compile database generation
+    pub fn record_compile_db_fqbn(&mut self, fqbn: String) {
+        self.compile_db_fqbn = Some(fqbn);
+    }
+
     // ============================================================================
     // JSON Serialization
     // ============================================================================
@@ -225,6 +236,10 @@ impl InstallationState {
             obj["last_detected_board"] = board.to_json();
         }
 
+        if let Some(ref fqbn) = self.compile_db_fqbn {
+            obj["compile_db_fqbn"] = serde_json::Value::String(fqbn.clone());
+        }
+
         obj
     }
 
@@ -249,6 +264,10 @@ impl InstallationState {
             last_detected_board: json
                 .get("last_detected_board")
                 .and_then(DetectedBoard::from_json),
+            compile_db_fqbn: json
+                .get("compile_db_fqbn")
+                .and_then(|v| v.as_str())
+                .map(String::from),
         }
     }
 }

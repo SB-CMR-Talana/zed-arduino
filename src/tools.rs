@@ -2,7 +2,6 @@
 
 use std::fs;
 use std::path::PathBuf;
-use std::process::Command;
 use zed_extension_api::{self as zed};
 
 // ============================================================================
@@ -13,10 +12,6 @@ use zed_extension_api::{self as zed};
 #[derive(Debug, Clone)]
 pub struct ToolInfo {
     pub path: String,
-    pub resolved_path: Option<String>, // If it's a symlink
-    pub source: String,
-    pub version: Option<String>,
-    pub version_ok: bool,
 }
 
 // ============================================================================
@@ -42,13 +37,6 @@ pub fn is_executable(path: &str) -> bool {
     {
         file_exists(path)
     }
-}
-
-/// Resolve symlink to actual file path
-pub fn resolve_symlink(path: &str) -> Option<String> {
-    fs::read_link(path)
-        .ok()
-        .and_then(|p| p.to_str().map(String::from))
 }
 
 /// Get absolute path from relative path
@@ -102,55 +90,9 @@ pub fn version_meets_minimum(version: &str, min_version: &str) -> bool {
 // Tool Info Creation
 // ============================================================================
 
-/// Create ToolInfo with version checking
-pub fn make_tool_info(path: String, source: &str, min_version: &str) -> ToolInfo {
-    let resolved_path = resolve_symlink(&path);
-    let version = extract_tool_version(&path);
-    let version_ok = version
-        .as_ref()
-        .map(|v| version_meets_minimum(v, min_version))
-        .unwrap_or(false);
-
-    ToolInfo {
-        path,
-        resolved_path,
-        source: source.to_string(),
-        version,
-        version_ok,
-    }
-}
-
-/// Extract version by running tool with --version
-fn extract_tool_version(path: &str) -> Option<String> {
-    let output = Command::new(path).arg("--version").output().ok()?;
-
-    if !output.status.success() {
-        return None;
-    }
-
-    let stdout = String::from_utf8(output.stdout).ok()?;
-    extract_version_from_output(&stdout)
-}
-
-/// Log tool information with warnings
-pub fn log_tool_info(tool_name: &str, info: &ToolInfo) {
-    eprint!("Arduino: Found {} at {} ", tool_name, info.path);
-
-    if let Some(ref resolved) = info.resolved_path {
-        eprint!("(symlink to {}) ", resolved);
-    }
-
-    eprint!("from {}", info.source);
-
-    if let Some(ref version) = info.version {
-        if info.version_ok {
-            eprintln!(" (version {})", version);
-        } else {
-            eprintln!(" (version {} - may be outdated)", version);
-        }
-    } else {
-        eprintln!(" (version unknown)");
-    }
+/// Create ToolInfo for a detected tool
+pub fn make_tool_info(path: String, _source: &str, _min_version: &str) -> ToolInfo {
+    ToolInfo { path }
 }
 
 // ============================================================================
@@ -168,7 +110,6 @@ pub fn check_cached_version<F>(
     cached_path: &Option<String>,
     requested_version: &Option<String>,
     extract_version_fn: F,
-    tool_name: &str,
 ) -> CachedVersionStatus
 where
     F: Fn(&str) -> Option<String>,
@@ -188,17 +129,8 @@ where
     };
 
     match extract_version_fn(cached) {
-        Some(cached_ver) if &cached_ver == requested => {
-            eprintln!("Arduino: Using cached {} version {}", tool_name, cached_ver);
-            CachedVersionStatus::Valid
-        }
-        Some(cached_ver) => {
-            eprintln!(
-                "Arduino: Cached {} version {} doesn't match requested {}",
-                tool_name, cached_ver, requested
-            );
-            CachedVersionStatus::VersionMismatch
-        }
+        Some(cached_ver) if &cached_ver == requested => CachedVersionStatus::Valid,
+        Some(_) => CachedVersionStatus::VersionMismatch,
         None => CachedVersionStatus::NeedsUpdate,
     }
 }
@@ -241,10 +173,7 @@ where
     F: Fn(&str) -> Result<String, String>,
 {
     match validator(path) {
-        Ok(version_info) => {
-            eprintln!("Arduino: {} validated: {}", tool_name, version_info);
-            Ok(())
-        }
+        Ok(_) => Ok(()),
         Err(e) => {
             let recovery = if auto_download {
                 "Extension will retry download automatically."

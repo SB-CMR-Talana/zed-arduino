@@ -1,6 +1,6 @@
 //! Slash command handlers for Arduino extension AI Assistant integration.
 
-use zed_extension_api::{self as zed, serde_json};
+use zed_extension_api::{self as zed, process::Command, serde_json};
 
 use crate::metadata::InstallationState;
 use crate::sketches;
@@ -247,16 +247,6 @@ pub fn run_config_command(
         }
     ));
 
-    let auto_generate_tasks = utils::get_setting(worktree, "autoGenerateTasks", true);
-    output.push_str(&format!(
-        "**Auto Generate `.zed/tasks.json`:** {}\n",
-        if auto_generate_tasks {
-            "✓ Enabled"
-        } else {
-            "✗ Disabled"
-        }
-    ));
-
     sections.push(zed::SlashCommandOutputSection {
         range: zed::Range {
             start: section_start as u32,
@@ -436,7 +426,7 @@ pub fn run_cores_command(
     };
 
     // Run arduino-cli core list
-    let result = std::process::Command::new(&cli_command)
+    let result = Command::new(&cli_command)
         .arg("core")
         .arg("list")
         .arg("--format")
@@ -445,7 +435,7 @@ pub fn run_cores_command(
 
     match result {
         Ok(cmd_output) => {
-            if cmd_output.status.success() {
+            if cmd_output.status == Some(0) {
                 let section_start = output.len();
                 output.push_str("## Installed Cores\n\n");
 
@@ -651,7 +641,7 @@ pub fn run_libraries_command(
     };
 
     // Run arduino-cli lib list
-    let result = std::process::Command::new(&cli_command)
+    let result = Command::new(&cli_command)
         .arg("lib")
         .arg("list")
         .arg("--format")
@@ -660,7 +650,7 @@ pub fn run_libraries_command(
 
     match result {
         Ok(cmd_output) => {
-            if cmd_output.status.success() {
+            if cmd_output.status == Some(0) {
                 let section_start = output.len();
                 output.push_str("## Installed Libraries\n\n");
 
@@ -1142,7 +1132,7 @@ pub fn run_examples_command(
     };
 
     // First, get list of libraries to find their examples
-    let lib_result = std::process::Command::new(&cli_command)
+    let lib_result = Command::new(&cli_command)
         .arg("lib")
         .arg("list")
         .arg("--format")
@@ -1151,7 +1141,7 @@ pub fn run_examples_command(
 
     match lib_result {
         Ok(cmd_output) => {
-            if cmd_output.status.success() {
+            if cmd_output.status == Some(0) {
                 let section_start = output.len();
                 output.push_str("## Available Examples\n\n");
 

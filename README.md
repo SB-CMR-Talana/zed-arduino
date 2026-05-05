@@ -161,11 +161,11 @@ All settings go in `.zed/settings.json` under `lsp.arduino.settings`:
 | languageServerVersion | | Pin language server version (e.g., "0.7.5") |
 | arduinoCliVersion | | Pin arduino-cli version (e.g., "1.0.4") |
 | clangdVersion | | Pin clangd version (e.g., "18.1.3") |
-| autoGenerateTasks | true | Auto-create .zed/tasks.json with Arduino commands |
 | autoDownloadCli | true | Auto-download arduino-cli if not in PATH |
 | autoCreateConfig | true | Auto-create arduino-cli.yaml if missing |
 | autoInstallCore | true | Auto-install board core from FQBN |
-| autoGenerateCompileDb | true | Auto-generate compile_commands.json for better IntelliSense |
+
+> **Note**: `compile_commands.json` (for IntelliSense) is automatically generated when you run any compile task, or manually via the "Arduino: Generate Compilation Database" task.
 
 ### Minimal Configuration
 
@@ -234,11 +234,10 @@ All settings go in `.zed/settings.json` under `lsp.arduino.settings`:
         "languageServerVersion": "x.y.z",
         "arduinoCliVersion": "x.y.z",
         "clangdVersion": "x.y.z",
-        "autoGenerateTasks": true,
         "autoDownloadCli": true,
         "autoCreateConfig": true,
-        "autoInstallCore": true,
-        "autoGenerateCompileDb": true
+        "autoInstallCore": true
+        // Note: autoGenerateCompileDb removed - compile_commands.json now generated at compile time
       }
     }
   }
@@ -309,7 +308,7 @@ Access via `Cmd+Shift+P` → `tasks: spawn`
 
 ### Optional Advanced/Diagnostic Tasks
 
-The extension auto-generates `.zed/tasks.json` with 9 additional commented-out tasks for advanced users and troubleshooting:
+The task templates in `templates/unix_tasks.json` (Linux/Mac) and `templates/windows_tasks.json` (Windows) include 9 additional commented-out tasks for advanced users and troubleshooting:
 
 - **Arduino: Extension Diagnostics** - Comprehensive tool detection report (shows where each tool was found)
 - **Arduino: Clear clangd Cache** - Fix stale IntelliSense issues
@@ -317,7 +316,6 @@ The extension auto-generates `.zed/tasks.json` with 9 additional commented-out t
 - **Arduino: Show Board Options** - Display all configuration options for your board (CPU speed, flash size, etc.)
 - **Arduino: Show Library Dependencies** - Analyze library dependency trees
 - **Arduino: List Examples** - Browse example sketches
-- **Arduino: Regenerate Tasks File** - Recreate `.zed/tasks.json` with latest templates
 - **Arduino: Clean Build** - Remove all build artifacts and temporary files
 - **Arduino: Format Code** - Format all `.ino` files in project using clang-format
 

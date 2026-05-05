@@ -1,8 +1,7 @@
 //! Arduino Language Server: detection, download, and validation.
 
 use std::fs;
-use std::process::Command;
-use zed_extension_api::{self as zed, LanguageServerId, Result};
+use zed_extension_api::{self as zed, process::Command, LanguageServerId, Result};
 
 use crate::tools::{self, CachedVersionStatus, ToolInfo};
 
@@ -54,12 +53,9 @@ pub fn get_or_download(
         Some(pinned_version)
     };
 
-    if let CachedVersionStatus::Valid = tools::check_cached_version(
-        cached_path,
-        &version_to_use,
-        extract_version,
-        "Arduino Language Server",
-    ) {
+    if let CachedVersionStatus::Valid =
+        tools::check_cached_version(cached_path, &version_to_use, extract_version)
+    {
         return Ok(cached_path.as_ref().unwrap().clone());
     }
 
@@ -67,15 +63,6 @@ pub fn get_or_download(
         language_server_id,
         &zed::LanguageServerInstallationStatus::CheckingForUpdate,
     );
-
-    if let Some(version) = &version_to_use {
-        eprintln!(
-            "Arduino: Using pinned version {} for Arduino Language Server...",
-            version
-        );
-    } else {
-        eprintln!("Arduino: Checking for Arduino Language Server updates...");
-    }
 
     let release = if let Some(ref version) = version_to_use {
         tools::fetch_github_version(&repo, version).map_err(|e| {
@@ -155,10 +142,7 @@ pub fn get_or_download(
         tools::cleanup_old_versions("arduino-language-server-", &version_dir)?;
 
         zed::make_file_executable(&binary_path)?;
-        eprintln!(
-            "Arduino: Language Server v{} installed successfully",
-            release.version
-        );
+        eprintln!("Arduino: Language Server v{} installed", release.version);
     }
 
     let absolute_path = tools::get_absolute_path(&binary_path)?;
@@ -185,12 +169,9 @@ pub fn validate(path: &str) -> Result<String, String> {
         .output()
         .map_err(|e| format!("Failed to run arduino-language-server: {}", e))?;
 
-    if !output.status.success() {
+    if output.status != Some(0) {
         return Err("arduino-language-server --version command failed".to_string());
     }
-
-    let _stdout = String::from_utf8(output.stdout)
-        .map_err(|_| "Invalid UTF-8 in arduino-language-server output".to_string())?;
 
     if let Some(version) = extract_version(path) {
         Ok(format!("version {}", version))
@@ -203,11 +184,11 @@ pub fn validate(path: &str) -> Result<String, String> {
 pub fn extract_version(path: &str) -> Option<String> {
     let output = Command::new(path).arg("--version").output().ok()?;
 
-    if !output.status.success() {
+    if output.status != Some(0) {
         return None;
     }
 
-    let stdout = String::from_utf8(output.stdout).ok()?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
     tools::extract_version_from_output(&stdout)
 }
 

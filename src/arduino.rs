@@ -39,11 +39,13 @@ impl ArduinoExtension {
         if let Ok(lsp_settings) = LspSettings::for_worktree("arduino", worktree) {
             if let Some(binary) = lsp_settings.binary {
                 if let Some(path) = binary.path {
+                    // Validate manually configured path too
+                    if let Err(e) = language_server::validate(&path) {
+                        eprintln!("Arduino: Warning - Configured language server: {}", e);
+                    }
                     self.installation_state
                         .record_language_server_manual(path.clone());
-                    if let Err(e) = self.installation_state.save() {
-                        eprintln!("Arduino: Failed to save installation state: {}", e);
-                    }
+                    let _ = self.installation_state.save();
                     return Ok(path.clone());
                 }
             }
@@ -52,19 +54,15 @@ impl ArduinoExtension {
         // Check for ls.path fallback in settings
         let ls_path = utils::get_string_setting(worktree, "ls.path", "");
         if !ls_path.is_empty() {
-            eprintln!(
-                "Arduino: Using language server from ls.path setting: {}",
-                ls_path
-            );
+            // Validate manually configured path too
+            if let Err(e) = language_server::validate(&ls_path) {
+                eprintln!("Arduino: Warning - Configured language server: {}", e);
+            }
             self.installation_state
                 .record_language_server_manual(ls_path.clone());
-            if let Err(e) = self.installation_state.save() {
-                eprintln!("Arduino: Failed to save installation state: {}", e);
-            }
+            let _ = self.installation_state.save();
             return Ok(ls_path);
         }
-
-        eprintln!("Arduino: No ls.path specified, attempting to download language server...");
 
         // Use language_server module to get binary (checks PATH, cache, then downloads)
         let path = language_server::get_or_download(
@@ -73,17 +71,29 @@ impl ArduinoExtension {
             &mut self.cached_language_server_path,
         )?;
 
-        // Track downloaded version
-        if let Some(version) = language_server::extract_version(&path) {
-            self.installation_state
-                .record_language_server_download(&version, path.clone());
-        } else {
-            self.installation_state
-                .record_language_server_download("unknown", path.clone());
+        // Track downloaded version and validate it
+        match language_server::validate(&path) {
+            Ok(version_info) => {
+                // Extract just the version number from the info string
+                if let Some(version) = language_server::extract_version(&path) {
+                    self.installation_state
+                        .record_language_server_download(&version, path.clone());
+                } else {
+                    eprintln!(
+                        "Arduino: Warning - Could not extract version: {}",
+                        version_info
+                    );
+                    self.installation_state
+                        .record_language_server_download("unknown", path.clone());
+                }
+            }
+            Err(e) => {
+                eprintln!("Arduino: Warning - Language server validation: {}", e);
+                self.installation_state
+                    .record_language_server_download("unknown", path.clone());
+            }
         }
-        if let Err(e) = self.installation_state.save() {
-            eprintln!("Arduino: Failed to save installation state: {}", e);
-        }
+        let _ = self.installation_state.save();
 
         Ok(path)
     }
@@ -112,12 +122,13 @@ impl ArduinoExtension {
         }
 
         if let Some(info) = clangd::find(worktree) {
-            tools::log_tool_info("clangd", &info);
+            // Validate system tool too
+            if let Err(e) = clangd::validate(&info.path) {
+                eprintln!("Arduino: Warning - System clangd: {}", e);
+            }
             self.installation_state
                 .record_clangd_from_system(info.path.clone(), metadata::ToolSource::ZedManaged);
-            if let Err(e) = self.installation_state.save() {
-                eprintln!("Arduino: Failed to save installation state: {}", e);
-            }
+            let _ = self.installation_state.save();
             args.push("-clangd".to_string());
             args.push(info.path.clone());
             self.cached_clangd_info = Some(info);
@@ -125,13 +136,24 @@ impl ArduinoExtension {
         } else {
             match clangd::get_or_download(worktree, &mut self.cached_clangd_path) {
                 Ok(clangd_path) => {
-                    let version = clangd::extract_version(&clangd_path)
-                        .unwrap_or_else(|| "unknown".to_string());
-                    self.installation_state
-                        .record_clangd_download(&version, clangd_path.clone());
-                    if let Err(e) = self.installation_state.save() {
-                        eprintln!("Arduino: Failed to save installation state: {}", e);
+                    // Validate and extract version
+                    match clangd::validate(&clangd_path) {
+                        Ok(_version_info) => {
+                            if let Some(version) = clangd::extract_version(&clangd_path) {
+                                self.installation_state
+                                    .record_clangd_download(&version, clangd_path.clone());
+                            } else {
+                                self.installation_state
+                                    .record_clangd_download("unknown", clangd_path.clone());
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("Arduino: Warning - Clangd validation: {}", e);
+                            self.installation_state
+                                .record_clangd_download("unknown", clangd_path.clone());
+                        }
                     }
+                    let _ = self.installation_state.save();
                     args.push("-clangd".to_string());
                     args.push(clangd_path);
                     self.add_clangd_arguments(args, worktree);
@@ -164,22 +186,36 @@ impl ArduinoExtension {
         }
 
         if let Some(info) = arduino_cli::find(worktree) {
-            tools::log_tool_info("arduino-cli", &info);
+            // Validate system tool too
+            if let Err(e) = arduino_cli::validate(&info.path) {
+                eprintln!("Arduino: Warning - System arduino-cli: {}", e);
+            }
             self.installation_state
                 .record_arduino_cli_from_path(info.path.clone());
-            if let Err(e) = self.installation_state.save() {
-                eprintln!("Arduino: Failed to save installation state: {}", e);
-            }
+            let _ = self.installation_state.save();
             args.push("-cli".to_string());
             args.push(info.path.clone());
             self.cached_arduino_cli_info = Some(info);
         } else {
             match arduino_cli::get_or_download(worktree, &mut self.cached_arduino_cli_path) {
                 Ok(cli_path) => {
-                    let version = arduino_cli::extract_version(&cli_path)
-                        .unwrap_or_else(|| "unknown".to_string());
-                    self.installation_state
-                        .record_arduino_cli_download(&version, cli_path.clone());
+                    // Validate and extract version
+                    match arduino_cli::validate(&cli_path) {
+                        Ok(_version_info) => {
+                            if let Some(version) = arduino_cli::extract_version(&cli_path) {
+                                self.installation_state
+                                    .record_arduino_cli_download(&version, cli_path.clone());
+                            } else {
+                                self.installation_state
+                                    .record_arduino_cli_download("unknown", cli_path.clone());
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("Arduino: Warning - Arduino CLI validation: {}", e);
+                            self.installation_state
+                                .record_arduino_cli_download("unknown", cli_path.clone());
+                        }
+                    }
                     if let Err(e) = self.installation_state.save() {
                         eprintln!("Arduino: Failed to save installation state: {}", e);
                     }
@@ -242,22 +278,67 @@ impl ArduinoExtension {
     // Automation
     // ============================================================================
 
+    /// Check if compile database should be generated
+    /// Only generate when:
+    /// - An Arduino sketch exists in the workspace
+    /// - Database doesn't exist
+    /// - FQBN has changed since last generation
+    /// - User hasn't disabled auto-generation
+    fn should_generate_compile_database(
+        &self,
+        worktree: &zed::Worktree,
+        fqbn: &Option<String>,
+    ) -> bool {
+        // Check if user disabled auto-generation
+        if !utils::get_setting(worktree, "autoGenerateCompileDb", true) {
+            return false;
+        }
+
+        // Check if there's actually an Arduino sketch in the workspace
+        let detected_sketches = sketches::find_directories(worktree);
+        if detected_sketches.is_empty() {
+            // No Arduino sketch found - don't generate
+            return false;
+        }
+
+        // If database exists, check if FQBN changed
+        if sketches::check_compilation_database(worktree) {
+            if let Some(current_fqbn) = fqbn {
+                if let Some(cached_fqbn) = self.installation_state.get_compile_db_fqbn() {
+                    // Skip if same FQBN
+                    if current_fqbn == cached_fqbn {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        // Generate if database missing or FQBN changed
+        true
+    }
+
     // Handle auto-install core and auto-generate compile_commands.json
     fn setup_automation(&mut self, args: &[String], worktree: &zed::Worktree) {
         let fqbn = utils::get_arg_value(args, "-fqbn").map(|s| s.to_string());
 
         // Auto-install core if enabled and FQBN is specified
+        // Setup automation: auto-install cores
         if utils::get_setting(worktree, "autoInstallCore", true) {
             if let Some(ref fqbn) = fqbn {
                 self.validate_and_use_fqbn(fqbn, |fqbn| {
                     if let Some(core_id) = arduino_cli::extract_core_id(fqbn) {
-                        if let Some(cli_path) = utils::get_arg_value(args, "-cli") {
-                            if !arduino_cli::is_core_installed(cli_path, &core_id) {
-                                let config_path = utils::get_arg_value(args, "-cli-config");
-                                if arduino_cli::install_core(cli_path, &core_id, config_path)
-                                    .is_ok()
-                                {
-                                    eprintln!("Arduino: Installed core {} automatically", core_id);
+                        if !core_id.is_empty() {
+                            if let Some(cli_path) = utils::get_arg_value(args, "-cli") {
+                                if !arduino_cli::is_core_installed(cli_path, &core_id) {
+                                    let config_path = utils::get_arg_value(args, "-cli-config");
+                                    if arduino_cli::install_core(cli_path, &core_id, config_path)
+                                        .is_ok()
+                                    {
+                                        eprintln!(
+                                            "Arduino: Installed core {} automatically",
+                                            core_id
+                                        );
+                                    }
                                 }
                             }
                         }
@@ -266,28 +347,69 @@ impl ArduinoExtension {
             }
         }
 
-        // Auto-generate compilation database if enabled
-        if utils::get_setting(worktree, "autoGenerateCompileDb", true)
-            && !sketches::check_compilation_database(worktree)
-        {
+        // Smart compile database generation: only when needed for IntelliSense
+        if self.should_generate_compile_database(worktree, &fqbn) {
             if let Some(ref fqbn) = fqbn {
-                self.validate_and_use_fqbn(fqbn, |fqbn| {
-                    if let Some(cli_path) = utils::get_arg_value(args, "-cli") {
-                        let config_path = utils::get_arg_value(args, "-cli-config");
-                        let library_paths = utils::get_library_paths(worktree);
-                        if arduino_cli::generate_compile_db(
-                            cli_path,
-                            fqbn,
-                            config_path,
-                            &library_paths,
-                            worktree,
-                        )
-                        .is_ok()
-                        {
-                            eprintln!("Arduino: Generated compile_commands.json automatically");
+                // Validate FQBN first
+                if let Err(e) = arduino_cli::validate_fqbn(fqbn) {
+                    eprintln!("Arduino: {}", e);
+                } else if let Some(cli_path) = utils::get_arg_value(args, "-cli") {
+                    // Determine sketch path (same logic as language_server_command)
+                    let detected_sketches = sketches::find_directories(worktree);
+                    let explicit_sketch_path =
+                        utils::get_string_setting(worktree, "sketchPath", "");
+
+                    let sketch_path = if !explicit_sketch_path.is_empty() {
+                        format!("{}/{}", worktree.root_path(), explicit_sketch_path)
+                    } else if !detected_sketches.is_empty() {
+                        let relative = &detected_sketches[0];
+                        if relative == "." {
+                            worktree.root_path()
+                        } else {
+                            format!("{}/{}", worktree.root_path(), relative)
+                        }
+                    } else {
+                        worktree.root_path()
+                    };
+
+                    let config_path = utils::get_arg_value(args, "-cli-config");
+                    let library_paths = utils::get_library_paths(worktree);
+
+                    eprintln!(
+                        "Arduino: Generating compile_commands.json for IntelliSense (10-30s)..."
+                    );
+
+                    match arduino_cli::generate_compile_db(
+                        cli_path,
+                        fqbn,
+                        config_path,
+                        &library_paths,
+                        &sketch_path,
+                        worktree,
+                    ) {
+                        Ok(_) => {
+                            eprintln!("Arduino: ✓ Compilation database generated successfully");
+                            // Cache the FQBN to avoid regeneration
+                            self.installation_state
+                                .record_compile_db_fqbn(fqbn.to_string());
+                            let _ = self.installation_state.save();
+                        }
+                        Err(e) => {
+                            eprintln!(
+                                "Arduino: Warning - Failed to generate compilation database: {}",
+                                e
+                            );
+                            eprintln!(
+                                "Arduino: IntelliSense will be limited. Run a compile task to generate it."
+                            );
                         }
                     }
-                });
+                }
+            } else {
+                eprintln!("Arduino: Compilation database not generated - FQBN not configured");
+                eprintln!(
+                    "Arduino: Set 'fqbn' in settings or connect a board for full IntelliSense"
+                );
             }
         }
     }
@@ -304,21 +426,15 @@ impl ArduinoExtension {
         if let Some(cli_path) = utils::get_arg_value(args, "-cli") {
             if let Some((fqbn, port, name)) = arduino_cli::detect_connected_board(cli_path) {
                 eprintln!(
-                    "Arduino: Auto-detected board: {} (FQBN: {})",
+                    "Arduino: Auto-detected board: {} ({})",
                     name.as_deref().unwrap_or("Unknown"),
                     fqbn
                 );
-                if let Some(ref p) = port {
-                    eprintln!("Arduino: Port: {}", p);
-                }
-                eprintln!("Arduino: Using detected FQBN (not saved to settings)");
 
                 // Save to installation state for future use
                 self.installation_state
                     .record_detected_board(fqbn.clone(), port, name);
-                if let Err(e) = self.installation_state.save() {
-                    eprintln!("Arduino: Failed to save detected board: {}", e);
-                }
+                let _ = self.installation_state.save();
 
                 return Some(fqbn);
             }
@@ -326,10 +442,7 @@ impl ArduinoExtension {
 
         // 3. Use last detected board from installation state
         if let Some(last_fqbn) = self.installation_state.get_last_detected_fqbn() {
-            eprintln!(
-                "Arduino: No board detected, using last detected FQBN: {}",
-                last_fqbn
-            );
+            eprintln!("Arduino: Using previously detected FQBN: {}", last_fqbn);
             return Some(last_fqbn.to_string());
         }
 
@@ -355,21 +468,33 @@ impl zed::Extension for ArduinoExtension {
         language_server_id: &LanguageServerId,
         worktree: &zed::Worktree,
     ) -> Result<zed::Command> {
-        // Determine sketch path: explicit setting or auto-detect
+        // Determine sketch path: auto-detect, then settings, then default to workspace root
         let sketch_path = {
+            // First, try to auto-detect sketch locations
+            let detected_sketches = sketches::find_directories(worktree);
+
+            // Check if user explicitly set sketchPath in settings
             let explicit_sketch_path = utils::get_string_setting(worktree, "sketchPath", "");
 
-        // Determine sketch path to use (either explicit or detected)
-        let sketch_path_to_use = if !explicit_sketch_path.is_empty() {
-            explicit_sketch_path
-        } else {
-            // Detect Arduino sketches in the worktree
-            let sketches = sketches::find_directories(worktree);
-            if sketches.is_empty() {
-                ".".to_string() // Default to workspace root
+            if !explicit_sketch_path.is_empty() {
+                explicit_sketch_path
+            } else if !detected_sketches.is_empty() {
+                // Use the first detected sketch (shallowest directory)
+                let detected = detected_sketches[0].clone();
+                if detected_sketches.len() > 1 {
+                    eprintln!(
+                        "Arduino: Found {} sketches, using: {} (set 'sketchPath' to override)",
+                        detected_sketches.len(),
+                        detected
+                    );
+                }
+                detected
             } else {
-                // Use the first detected sketch (shallowest, then alphabetically)
-                sketches[0].clone()
+                eprintln!("Arduino: No sketch detected, using workspace root");
+                eprintln!(
+                    "Arduino: Tip: Set 'sketchPath' in settings if sketch is in a subdirectory"
+                );
+                ".".to_string()
             }
         };
 
@@ -382,14 +507,7 @@ impl zed::Extension for ArduinoExtension {
                 zed::Os::Windows => metadata::Platform::Windows,
             };
             self.installation_state.record_platform(detected_platform);
-            if let Err(e) = self.installation_state.save() {
-                eprintln!("Arduino: Failed to save installation state: {}", e);
-            }
-        }
-
-        // Auto-generate .zed/tasks.json if enabled (settings generation removed - use task instead)
-        if let Err(e) = setup::auto_generate_tasks(worktree, &self.installation_state) {
-            eprintln!("Arduino: {}", e);
+            let _ = self.installation_state.save();
         }
 
         // Check dependencies and report any issues
@@ -423,18 +541,14 @@ impl zed::Extension for ArduinoExtension {
         // Add sketch path argument if not already in args
         if !utils::has_arg(&args, "-sketch-path") {
             // Convert relative path to absolute
-            let absolute_sketch_path = if sketch_path_to_use == "." {
+            let absolute_sketch_path = if sketch_path == "." {
                 worktree.root_path()
             } else {
-                format!("{}/{}", worktree.root_path(), sketch_path_to_use)
+                format!("{}/{}", worktree.root_path(), sketch_path)
             };
 
             args.push("-sketch-path".to_string());
             args.push(absolute_sketch_path.clone());
-            eprintln!(
-                "Arduino: Passing sketch path to language server: {}",
-                absolute_sketch_path
-            );
         }
 
         // Add clangd path from settings if not already in args
@@ -466,23 +580,12 @@ impl zed::Extension for ArduinoExtension {
         // NOTE: Must be after arduino-cli is resolved since detection needs it
         if !utils::has_arg(&args, "-fqbn") {
             if let Some(fqbn) = self.get_or_detect_fqbn(&args, worktree) {
-                eprintln!(
-                    "Arduino: Adding FQBN to language server arguments: {}",
-                    fqbn
-                );
                 args.push("-fqbn".to_string());
                 args.push(fqbn);
             } else {
                 eprintln!("Arduino: Warning - FQBN not configured and no board detected");
-                eprintln!(
-                    "Arduino: Add 'fqbn' to lsp.arduino.settings or connect an Arduino board"
-                );
+                eprintln!("Arduino: Add 'fqbn' to settings or connect an Arduino board");
             }
-        } else {
-            eprintln!(
-                "Arduino: FQBN already in arguments: {:?}",
-                utils::get_arg_value(&args, "-fqbn")
-            );
         }
 
         // Auto-detect or auto-create arduino-cli config
@@ -533,19 +636,7 @@ impl zed::Extension for ArduinoExtension {
             if let Some(paths) = Self::extract_library_paths(worktree) {
                 args.push("-libraries".to_string());
                 args.push(paths.join(","));
-                eprintln!("Arduino: Using custom library paths: {}", paths.join(", "));
             }
-        }
-
-        // Pass sketch path to language server if detected
-        if !sketch_path.is_empty() {
-            let full_sketch_path = if sketch_path == "." {
-                worktree.root_path().to_string()
-            } else {
-                format!("{}/{}", worktree.root_path(), sketch_path)
-            };
-            args.push("-sketch".to_string());
-            args.push(full_sketch_path);
         }
 
         // Run automation features
@@ -559,11 +650,6 @@ impl zed::Extension for ArduinoExtension {
         let mut merged_env: HashMap<String, String> = default_env.into_iter().collect();
         merged_env.extend(env);
         env = merged_env;
-
-        eprintln!("Arduino: Starting language server:");
-        eprintln!("  Command: {}", command_path);
-        eprintln!("  Args: {:?}", args);
-        eprintln!("  Working directory: {}", worktree.root_path());
 
         Ok(zed::Command {
             command: command_path,
