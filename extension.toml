@@ -16,30 +16,30 @@ repository = "https://github.com/tree-sitter-grammars/tree-sitter-arduino"
 commit = "017696bdf47ca2b10948c5a511f9ab387722d0f3"
 
 # Slash commands for AI Assistant
-[slash_commands."arduino-board"]
+[slash_commands.arduino-board]
 description = "Show current Arduino board configuration"
 requires_argument = false
 
-[slash_commands."arduino-config"]
+[slash_commands.arduino-config]
 description = "Show Arduino extension configuration"
 requires_argument = false
 
-[slash_commands."arduino-sketch"]
+[slash_commands.arduino-sketch]
 description = "Show Arduino sketch structure"
 requires_argument = false
 
-[slash_commands."arduino-cores"]
+[slash_commands.arduino-cores]
 description = "List installed Arduino board cores"
 requires_argument = false
 
-[slash_commands."arduino-libraries"]
+[slash_commands.arduino-libraries]
 description = "List installed Arduino libraries"
 requires_argument = false
 
-[slash_commands."arduino-errors"]
+[slash_commands.arduino-errors]
 description = "Show last compilation errors"
 requires_argument = false
 
-[slash_commands."arduino-examples"]
+[slash_commands.arduino-examples]
 description = "List available example sketches"
 requires_argument = false

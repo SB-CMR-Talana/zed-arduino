@@ -355,8 +355,9 @@ impl zed::Extension for ArduinoExtension {
         language_server_id: &LanguageServerId,
         worktree: &zed::Worktree,
     ) -> Result<zed::Command> {
-        // Check for explicit sketch path override
-        let explicit_sketch_path = utils::get_string_setting(worktree, "sketchPath", "");
+        // Determine sketch path: explicit setting or auto-detect
+        let sketch_path = {
+            let explicit_sketch_path = utils::get_string_setting(worktree, "sketchPath", "");
 
         // Determine sketch path to use (either explicit or detected)
         let sketch_path_to_use = if !explicit_sketch_path.is_empty() {
@@ -534,6 +535,17 @@ impl zed::Extension for ArduinoExtension {
                 args.push(paths.join(","));
                 eprintln!("Arduino: Using custom library paths: {}", paths.join(", "));
             }
+        }
+
+        // Pass sketch path to language server if detected
+        if !sketch_path.is_empty() {
+            let full_sketch_path = if sketch_path == "." {
+                worktree.root_path().to_string()
+            } else {
+                format!("{}/{}", worktree.root_path(), sketch_path)
+            };
+            args.push("-sketch".to_string());
+            args.push(full_sketch_path);
         }
 
         // Run automation features
