@@ -21,6 +21,35 @@
 
 ## Future Enhancements
 
+### Context-Aware C++/H File Routing
+
+**Status**: Blocked by Zed extension API limitations
+
+**Current Implementation**:
+- All `.cpp`, `.c`, `.h`, `.hpp` files are marked as "Arduino" language (`languages/arduino/config.toml`)
+- This prevents Zed's built-in clangd from handling them
+- All C/C++ files in workspace go to Arduino Language Server
+
+**Trade-offs**:
+- ✅ Arduino Language Server handles all C/C++ files (correct Arduino IntelliSense)
+- ✅ Works for pure Arduino projects
+- ⚠️ Cannot mix Arduino projects with regular C++ projects in same workspace
+- ⚠️ All C++ files get Arduino syntax highlighting and treatment
+
+**Ideal Solution** (not currently possible):
+- Route only C++ files within sketch directory to Arduino LS
+- Route other C++ files to built-in clangd
+- Requires Zed API support for:
+  - Dynamic language ID assignment based on file location
+  - Per-directory language server routing
+  - Extension-provided language servers taking precedence over built-in ones for specific paths
+
+**To Revisit When**:
+Zed extension API adds support for:
+- Path-based language server routing (e.g., "route \*.cpp in sketch_dir/ to Arduino LS")
+- Extension language servers with priority/precedence over built-in servers
+- Dynamic `path_suffixes` or conditional language assignment
+
 ### Automatic Board Detection & FQBN Resolution
 
 **Status**: ✅ Completed

@@ -1,6 +1,6 @@
 name = "Arduino"
 grammar = "arduino"
-path_suffixes = ["ino", "pde"]
+path_suffixes = ["ino", "pde", "cpp", "c", "h", "hpp"]
 word_characters = ["_"]
 line_comments = ["// ", "/// ", "//! "]
 block_comment = ["/* ", " */"]

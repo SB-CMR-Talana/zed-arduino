@@ -106,6 +106,8 @@ The extension automatically scans your workspace for Arduino sketch directories 
   - Logs all detected sketches at startup
   - For multiple independent sketches, **open each as a separate workspace** for best results
 
+**Note on `.cpp` and `.h` files**: Arduino sketches often include additional C++ source and header files. While Zed will show these as "C++" files in the UI, the language server correctly treats them as Arduino code and provides Arduino-specific IntelliSense. See [LANGUAGE_ID_HANDLING.md](LANGUAGE_ID_HANDLING.md) for details.
+
 ### Best Practices
 
 **Single Sketch Project** (Recommended):
